@@ -1,6 +1,8 @@
 # Personal Assistant MCP Server
 
-A customizable MCP server for goals, ideas, calendar, notes, and drawings. Fork this repository and customize it to create your own personalized assistant.
+A MCP server for managing goals, ideas, calendar, notes, designs, shortcuts, and more. Clone this repo to start using it in Cursor / Claude or fork this & customize as you like own personalized assistant.
+
+Check out the [ABOUT.md](ABOUT.md) to learn about the capabilities of this tool. Don't forget to star this repo if you find it useful!
 
 ## Getting Started
 
