@@ -8,9 +8,9 @@ import { registerGetDate } from "./tools/calendar/get-date.ts";
 import { registerListEvents } from "./tools/calendar/list-events.ts";
 import { registerManageCalendarEvent } from "./tools/calendar/manage-event.ts";
 import { registerCleanupState } from "./tools/cleanup-state.ts";
-import { registerManageDesign } from "./tools/excalidraw/manage-design.ts";
 import { registerListDrawings } from "./tools/excalidraw/list-drawings.ts";
 import { registerListLibraries } from "./tools/excalidraw/list-libraries.ts";
+import { registerManageDesign } from "./tools/excalidraw/manage-design.ts";
 import { registerViewLibrary } from "./tools/excalidraw/view-library.ts";
 import { registerHealthCheck } from "./tools/health-check.ts";
 import { registerListNotes } from "./tools/obsidian/list-notes.ts";
@@ -22,7 +22,7 @@ import { registerRunShortcut } from "./tools/shortcuts/run-shortcut.ts";
 import { registerCaptureThought } from "./tools/user/capture-thought.ts";
 import { registerManageGoal } from "./tools/user/manage-goal.ts";
 import { registerManageProfile } from "./tools/user/manage-profile.ts";
-import { registerViewStatus } from "./tools/user/view-status.ts";
+import { registerViewStatus } from "./tools/user/query-state.ts";
 import { registerDownloadMedia } from "./tools/ytdlp/download.ts";
 
 const server = new McpServer({

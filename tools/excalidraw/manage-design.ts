@@ -2,7 +2,10 @@ import { resolve } from "node:path";
 import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { z } from "zod";
 import { config } from "@/config.ts";
-import type { ExcalidrawDrawing, ExcalidrawElement } from "@/lib/utils/excalidraw.ts";
+import type {
+	ExcalidrawDrawing,
+	ExcalidrawElement,
+} from "@/lib/utils/excalidraw.ts";
 import { parseDrawingFile } from "@/lib/utils/excalidraw.ts";
 import { log } from "@/lib/utils/logger.ts";
 import { resolvePath } from "@/lib/utils/path.ts";
@@ -18,11 +21,17 @@ export const registerManageDesign = (server: McpServer) => {
 					.optional()
 					.default("create")
 					.describe("Action to perform"),
-				path: z.string().describe("Path to drawing file (with or without .excalidraw extension)"),
+				path: z
+					.string()
+					.describe(
+						"Path to drawing file (with or without .excalidraw extension)",
+					),
 				title: z
 					.string()
 					.optional()
-					.describe("Title for new drawing (required for create, optional for update)"),
+					.describe(
+						"Title for new drawing (required for create, optional for update)",
+					),
 				elements: z
 					.array(z.any())
 					.optional()
@@ -39,7 +48,9 @@ export const registerManageDesign = (server: McpServer) => {
 		},
 		async ({ action = "create", path, title, elements, drawing }) => {
 			const designsDir = resolvePath(config.designsDir);
-			const filename = path.endsWith(".excalidraw") ? path : `${path}.excalidraw`;
+			const filename = path.endsWith(".excalidraw")
+				? path
+				: `${path}.excalidraw`;
 			const fullPath = resolve(designsDir, filename);
 
 			try {
@@ -50,14 +61,23 @@ export const registerManageDesign = (server: McpServer) => {
 					}
 
 					await Bun.$`rm ${fullPath}`.quiet();
-					await log("info", "manage_design", { action, path }, `Deleted: ${path}`);
+					await log(
+						"info",
+						"manage_design",
+						{ action, path },
+						`Deleted: ${path}`,
+					);
 
 					return {
 						content: [
 							{
 								type: "text",
 								text: JSON.stringify(
-									{ success: true, message: `Deleted: ${path}`, path: fullPath },
+									{
+										success: true,
+										message: `Deleted: ${path}`,
+										path: fullPath,
+									},
 									null,
 									2,
 								),
@@ -219,7 +239,11 @@ export const registerManageDesign = (server: McpServer) => {
 					content: [
 						{
 							type: "text",
-							text: JSON.stringify({ success: false, error: errorMsg }, null, 2),
+							text: JSON.stringify(
+								{ success: false, error: errorMsg },
+								null,
+								2,
+							),
 						},
 					],
 				};
