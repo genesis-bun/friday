@@ -2,8 +2,7 @@ import { mkdir } from "node:fs/promises";
 import { dirname, join } from "node:path";
 import { config } from "@/config.ts";
 import { resolvePath } from "./path.ts";
-import { getProfile, updateProfile } from "./profile.ts";
-import { getState, updateState } from "./state.ts";
+import { getProfile, getState, updateProfile, updateState } from "./state.ts";
 
 export async function generateNotePath(title: string): Promise<string> {
 	if (!config.obsidianVault) {
@@ -189,22 +188,20 @@ export async function updateStateReferences(
 ): Promise<void> {
 	const state = await getState();
 
-	const updatedGoals = state.data.goals.map((goal) => ({
-		...goal,
-		refNotes: goal.refNotes.map((path) => (path === oldPath ? newPath : path)),
-	}));
-
-	const updatedIdeas = state.data.ideas.map((idea) => ({
-		...idea,
-		refNotes: idea.refNotes.map((path) => (path === oldPath ? newPath : path)),
-	}));
-
-	await updateState({
-		data: {
-			goals: updatedGoals,
-			ideas: updatedIdeas,
-		},
+	const updatedItems = state.items.map((item) => {
+		const references = (item.references || []).map((ref) => {
+			if (ref.type === "note" && ref.link === oldPath) {
+				return { ...ref, link: newPath };
+			}
+			return ref;
+		});
+		return {
+			...item,
+			references: references.length > 0 ? references : undefined,
+		};
 	});
+
+	await updateState({ items: updatedItems });
 }
 
 export async function updateProfileReferences(
@@ -213,10 +210,18 @@ export async function updateProfileReferences(
 ): Promise<void> {
 	const profile = await getProfile();
 
-	const updatedItems = profile.items.map((item) => ({
-		...item,
-		refNotes: item.refNotes.map((path) => (path === oldPath ? newPath : path)),
-	}));
+	const updatedItems = profile.items.map((item) => {
+		const references = (item.references || []).map((ref) => {
+			if (ref.type === "note" && ref.link === oldPath) {
+				return { ...ref, link: newPath };
+			}
+			return ref;
+		});
+		return {
+			...item,
+			references: references.length > 0 ? references : undefined,
+		};
+	});
 
 	await updateProfile({ items: updatedItems });
 }

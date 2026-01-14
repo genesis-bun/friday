@@ -40,9 +40,8 @@ Add to Cursor settings (`Cmd/Ctrl + ,` → MCP):
 ## Tools
 
 ### State Management
-- **`capture_thought`** - Capture temporary ideas/thoughts (use any category string you want)
+- **`manage_state`** - Create/update/delete state items: goals (with OKR structure) and thoughts/ideas (temporary). Goals support Google Calendar integration and key results. Thoughts support tags, priority, and automatic reference note creation.
 - **`cleanup_state`** - Remove outdated goals/ideas based on configurable criteria (creates timestamped backup)
-- **`manage_goal`** - Create/update/delete OKR goals with Google Calendar integration (use any category string)
 - **`manage_profile`** - Manage persistent profile (achievements, skills, preferences, knowledge, facts, history)
 - **`view_status`** - View goals, ideas, and profile data
 

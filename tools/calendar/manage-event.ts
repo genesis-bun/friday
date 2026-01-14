@@ -13,7 +13,7 @@ export const registerManageCalendarEvent = (server: McpServer) => {
 	server.registerTool(
 		"manage_event",
 		{
-			description: `${config.systemPrompt}\n\nCreate, update, or delete events in Google Calendar. Times must be in format "DD-MM-YYYY HH-MM" (e.g., "01-01-2024 14-00"). Timezone conversion happens automatically.`,
+			description: `${config.systemPrompt}\n\nCreate, update, or delete events in Google Calendar. Times must be in format "DD-MM-YYYY HH-MM" (e.g., "01-01-2024 14-00"). Timezone conversion happens automatically.\n\nSupports recurring events via recurrence parameter - use RRULE string format or recurrence object with frequency (DAILY/WEEKLY/MONTHLY/YEARLY), count/until, interval, and optional byDay/byMonth/byMonthDay.\n\nFor updating recurring events: use updateAllInstances=true to update the entire series, or false/omit to update only the single instance.`,
 			inputSchema: {
 				action: z
 					.enum(["create", "update", "delete"])
@@ -45,6 +45,56 @@ export const registerManageCalendarEvent = (server: McpServer) => {
 						"Override timezone (defaults to configured timezone). Use IANA timezone names like 'America/New_York'.",
 					),
 				description: z.string().optional().describe("Event description"),
+				recurrence: z
+					.union([
+						z.string().describe(
+							"Recurrence rule as RRULE string (e.g., 'FREQ=DAILY;COUNT=10' or 'FREQ=WEEKLY;BYDAY=MO,WE,FR')",
+						),
+						z
+							.object({
+								frequency: z
+									.enum(["DAILY", "WEEKLY", "MONTHLY", "YEARLY"])
+									.describe("Recurrence frequency"),
+								count: z
+									.number()
+									.optional()
+									.describe("Number of occurrences"),
+								until: z
+									.string()
+									.optional()
+									.describe(
+										'End date in format "DD-MM-YYYY" (mutually exclusive with count)',
+									),
+								interval: z
+									.number()
+									.optional()
+									.describe("Interval between recurrences (default: 1)"),
+								byDay: z
+									.array(z.string())
+									.optional()
+									.describe(
+										"Days of week for WEEKLY (e.g., ['MO', 'WE', 'FR']) or days for MONTHLY/YEARLY",
+									),
+								byMonth: z
+									.array(z.number())
+									.optional()
+									.describe("Months for YEARLY (1-12)"),
+								byMonthDay: z
+									.array(z.number())
+									.optional()
+									.describe("Days of month for MONTHLY/YEARLY (1-31)"),
+							})
+							.describe("Recurrence rule object"),
+					])
+					.optional()
+					.describe("Recurrence rule for repeating events"),
+				updateAllInstances: z
+					.boolean()
+					.optional()
+					.default(false)
+					.describe(
+						"For recurring events: update all instances (true) or just this instance (false). Default: false.",
+					),
 				sendUpdates: z
 					.enum(["all", "externalOnly", "none"])
 					.optional()
@@ -62,6 +112,8 @@ export const registerManageCalendarEvent = (server: McpServer) => {
 			endTime,
 			timezone,
 			description,
+			recurrence,
+			updateAllInstances = false,
 			sendUpdates = "none",
 		}) => {
 			try {
@@ -87,6 +139,7 @@ export const registerManageCalendarEvent = (server: McpServer) => {
 							startTime,
 							endTime,
 							timezone: tz,
+							recurrence,
 						});
 
 						response = {
@@ -110,13 +163,24 @@ export const registerManageCalendarEvent = (server: McpServer) => {
 							startTime,
 							endTime,
 							timezone: tz,
+							recurrence,
+							updateAllInstances,
 						});
 
 						const eventSummary = result.event.summary || title || "event";
+						const isRecurring = !!result.event.recurrence || !!result.event.recurringEventId;
+						let updateMessage = `Updated calendar event: ${eventSummary}`;
+						if (isRecurring) {
+							if (updateAllInstances) {
+								updateMessage = `Updated all instances of recurring event: ${eventSummary}`;
+							} else if (result.event.recurringEventId) {
+								updateMessage = `Updated single instance of recurring event: ${eventSummary}`;
+							}
+						}
 
 						response = {
 							success: true,
-							message: `Updated calendar event: ${eventSummary}`,
+							message: updateMessage,
 							event: result.event,
 							eventLink: result.htmlLink,
 						};

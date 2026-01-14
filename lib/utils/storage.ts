@@ -78,7 +78,8 @@ export function createStorage<T extends { version: string }>(config: {
 			}
 			const parsed = yaml.load(content);
 			return schema.parse(parsed);
-		} catch (_error) {
+		} catch (error) {
+			console.error("Storage get error:", error);
 			return defaultValue;
 		}
 	};

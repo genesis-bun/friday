@@ -4,7 +4,7 @@ import type {
 } from "@modelcontextprotocol/sdk/server/mcp.js";
 import yaml from "js-yaml";
 import { config } from "@/config.ts";
-import { getProfile } from "@/lib/utils/profile.ts";
+import { getProfile } from "@/lib/utils/state.ts";
 
 export const registerMemoryProfileResource = (server: McpServer) => {
 	const readCallback: ReadResourceCallback = async (uri, _extra) => {

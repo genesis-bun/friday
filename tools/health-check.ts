@@ -1,8 +1,7 @@
 import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { config } from "@/config.ts";
-import { ProfileSchema, StateSchema } from "@/lib/db/schema.ts";
-import { getProfile } from "@/lib/utils/profile.ts";
-import { getState } from "@/lib/utils/state.ts";
+import { StateSchema } from "@/lib/db/schema.ts";
+import { getProfile, getState } from "@/lib/utils/state.ts";
 
 export const registerHealthCheck = (server: McpServer) => {
 	server.registerTool(
@@ -16,7 +15,7 @@ export const registerHealthCheck = (server: McpServer) => {
 				StateSchema.parse(state);
 
 				const profile = await getProfile();
-				ProfileSchema.parse(profile);
+				StateSchema.parse(profile);
 
 				const timestamp = Date.now();
 				const currentISO = new Date(timestamp).toISOString();

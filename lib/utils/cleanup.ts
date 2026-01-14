@@ -1,6 +1,6 @@
 import yaml from "js-yaml";
 import { config } from "@/config.ts";
-import type { Idea, Objective } from "@/lib/db/schema.ts";
+import type { Item } from "@/lib/db/schema.ts";
 import { resolvePath } from "./path.ts";
 import { getState, updateState } from "./state.ts";
 
@@ -70,9 +70,15 @@ export async function cleanupState(
 	}
 	await Bun.write(logFile, "");
 
-	// Filter goals
-	const initialGoalCount = state.data.goals.length;
-	const filteredGoals = state.data.goals.filter((goal: Objective) => {
+	const goals = state.items.filter(
+		(item) => (item.keyResults?.length ?? 0) > 0,
+	);
+	const ideas = state.items.filter(
+		(item) => (item.keyResults?.length ?? 0) === 0,
+	);
+
+	const initialGoalCount = goals.length;
+	const filteredGoals = goals.filter((goal: Item) => {
 		if (opts.removeCompletedGoals && goal.status === "completed") return false;
 		if (opts.removeArchivedGoals && goal.status === "archived") return false;
 		if (opts.removePausedGoals && goal.status === "paused") {
@@ -87,9 +93,8 @@ export async function cleanupState(
 		return true;
 	});
 
-	// Filter ideas
-	const initialIdeaCount = state.data.ideas.length;
-	const filteredIdeas = state.data.ideas.filter((idea: Idea) => {
+	const initialIdeaCount = ideas.length;
+	const filteredIdeas = ideas.filter((idea: Item) => {
 		if (opts.removeCompletedIdeas && idea.status === "archived") return false;
 		if (opts.removeArchivedIdeas && idea.status === "archived") return false;
 		if (opts.ideaAgeThreshold && isOld(idea.createdAt, opts.ideaAgeThreshold)) {
@@ -98,13 +103,9 @@ export async function cleanupState(
 		return true;
 	});
 
-	await updateState({
-		data: {
-			...state.data,
-			goals: filteredGoals,
-			ideas: filteredIdeas,
-		},
-	});
+	const filteredItems = [...filteredGoals, ...filteredIdeas];
+
+	await updateState({ items: filteredItems });
 
 	return {
 		backupPath,

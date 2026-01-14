@@ -1,80 +1,42 @@
 import { z } from "zod";
 
-// OKR-based Goal Structure
 const KeyResultSchema = z.object({
 	id: z.string(),
-	description: z.string(),
-	target: z.number().optional(), // e.g., 10, 50, 5
-	current: z.number().optional(), // current progress
-	unit: z.string().optional(), // e.g., "USD", "hours", "tracks"
+	desc: z.string(),
+	target: z.number().optional(),
+	current: z.number().optional(),
+	unit: z.string().optional(),
 	status: z
 		.enum(["not_started", "in_progress", "completed", "at_risk"])
 		.default("not_started"),
 });
 
-const ObjectiveSchema = z.object({
+const referenceSchema = z.object({
 	id: z.string(),
-	title: z.string(),
-	description: z.string().optional(),
-	category: z.string(), // Flexible: users can use any category string
-	keyResults: z.array(KeyResultSchema).default([]),
-	calendarEventId: z.string().optional(), // Google Calendar event ID
-	calendarEventLink: z.string().optional(), // Google Calendar event HTML link
-	refNotes: z.array(z.string()).default([]),
-	createdAt: z.number(), // Unix epoch milliseconds
-	updatedAt: z.number(), // Unix epoch milliseconds
-	status: z
-		.enum(["active", "paused", "completed", "archived"])
-		.default("active"),
+	type: z.string(),
+	link: z.string().optional(), // link to the reference (path, url, etc.)
+	metadata: z.record(z.string(), z.unknown()).optional(), // for any extra information about the reference
 });
 
-// Ideas and Thoughts
-const IdeaSchema = z.object({
+const ItemSchema = z.object({
 	id: z.string(),
-	content: z.string(),
-	category: z.string(), // Flexible: users can use any category string
+	category: z.string(),
+	desc: z.string(),
 	tags: z.array(z.string()).default([]),
-	relatedGoalId: z.string().optional(), // link to objective if applicable
-	refNotes: z.array(z.string()).default([]),
-	createdAt: z.number(), // Unix epoch milliseconds
-	status: z.enum(["raw", "organized", "actionable", "archived"]).default("raw"),
-	priority: z.enum(["low", "medium", "high"]).optional(),
+	status: z.string().default("active"),
+	keyResults: z.array(KeyResultSchema).default([]).optional(), // for key results if needed
+	references: z.array(referenceSchema).default([]).optional(), // for related references (notes, designs, assets, etc.)
+	metadata: z.record(z.string(), z.unknown()).optional(), // for custom metadata if needed
+	createdAt: z.number(),
+	updatedAt: z.number().optional(),
 });
 
 export const StateSchema = z.object({
 	version: z.string(),
-	data: z.object({
-		goals: z.array(ObjectiveSchema).default([]),
-		ideas: z.array(IdeaSchema).default([]),
-		settings: z
-			.object({
-				currency: z.string(), // Currency code (e.g., "USD", "EUR")
-			})
-			.optional(),
-	}),
-});
-
-// Profile Schema - Flexible item schema that works for all categories
-const ProfileItemSchema = z.object({
-	id: z.string(),
-	category: z.string(), // Flexible: achievements, skills, preferences, etc.
-	content: z.string(), // Main content/description
-	tags: z.array(z.string()).default([]), // Cross-cutting organization
-	metadata: z.record(z.string(), z.unknown()).optional(), // Custom properties per item
-	refNotes: z.array(z.string()).default([]),
-	createdAt: z.number(), // Unix epoch milliseconds
-	updatedAt: z.number().optional(),
-});
-
-// Profile groups items by category
-export const ProfileSchema = z.object({
-	version: z.string(),
-	items: z.array(ProfileItemSchema).default([]),
+	items: z.array(ItemSchema).default([]),
 });
 
 export type State = z.infer<typeof StateSchema>;
-export type Objective = z.infer<typeof ObjectiveSchema>;
+export type Item = z.infer<typeof ItemSchema>;
 export type KeyResult = z.infer<typeof KeyResultSchema>;
-export type Idea = z.infer<typeof IdeaSchema>;
-export type Profile = z.infer<typeof ProfileSchema>;
-export type ProfileItem = z.infer<typeof ProfileItemSchema>;
+export type Reference = z.infer<typeof referenceSchema>;
