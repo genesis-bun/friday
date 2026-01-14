@@ -2,7 +2,11 @@ import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { z } from "zod";
 import { config } from "@/config.ts";
 import type { Item, KeyResult, Reference } from "@/lib/db/schema.ts";
-import { generateId } from "@/lib/utils/id.ts";
+import {
+	generateId,
+	generateKeyResultId,
+	generateReferenceId,
+} from "@/lib/utils/id.ts";
 import { log } from "@/lib/utils/logger.ts";
 import {
 	addItem,
@@ -33,11 +37,11 @@ type ReferenceInput = {
 function processKeyResults(
 	keyResults: KeyResultInput[] | undefined,
 	existingKeyResults?: KeyResult[],
-	totalKRs: number = 0,
+	allItems: Array<{ keyResults?: KeyResult[] }> = [],
 ): KeyResult[] | undefined {
 	if (!keyResults) return existingKeyResults;
 
-	return keyResults.map((kr, index) => {
+	return keyResults.map((kr) => {
 		const existingKr = existingKeyResults?.find(
 			(ekr) => ekr.id === kr.id || ekr.desc === kr.desc,
 		);
@@ -50,8 +54,16 @@ function processKeyResults(
 				? parseFloat(kr.current)
 				: kr.current;
 
+		// Generate unique ID if not provided
+		let krId = kr.id || existingKr?.id;
+		if (!krId) {
+			krId = generateKeyResultId(allItems);
+			// Add to allItems temporarily to avoid collisions within the same batch
+			allItems.push({ keyResults: [{ id: krId } as KeyResult] });
+		}
+
 		return {
-			id: kr.id || existingKr?.id || `kr${totalKRs + index + 1}`,
+			id: krId,
 			desc: kr.desc,
 			target:
 				targetNum !== undefined && !Number.isNaN(targetNum)
@@ -69,15 +81,26 @@ function processKeyResults(
 
 function processReferences(
 	references: ReferenceInput[] | undefined,
+	allItems: Array<{ references?: Reference[] }> = [],
 ): Reference[] | undefined {
 	if (!references) return undefined;
 
-	return references.map((ref) => ({
-		id: ref.id || `ref-${Date.now()}-${Math.random()}`,
-		type: ref.type,
-		link: ref.link,
-		metadata: ref.metadata,
-	}));
+	return references.map((ref) => {
+		// Generate unique ID if not provided
+		let refId = ref.id;
+		if (!refId) {
+			refId = generateReferenceId(allItems);
+			// Add to allItems temporarily to avoid collisions within the same batch
+			allItems.push({ references: [{ id: refId } as Reference] });
+		}
+
+		return {
+			id: refId,
+			type: ref.type,
+			link: ref.link,
+			metadata: ref.metadata,
+		};
+	});
 }
 
 function buildItemUpdates(
@@ -91,7 +114,7 @@ function buildItemUpdates(
 		references?: ReferenceInput[];
 		metadata?: Record<string, unknown>;
 	},
-	totalKRs: number = 0,
+	allItems: Array<{ keyResults?: KeyResult[]; references?: Reference[] }> = [],
 ): Partial<Item> {
 	const updates: Partial<Item> = {};
 
@@ -104,14 +127,14 @@ function buildItemUpdates(
 		const processed = processKeyResults(
 			params.keyResults,
 			existingItem.keyResults,
-			totalKRs,
+			allItems,
 		);
 		updates.keyResults =
 			processed && processed.length > 0 ? processed : undefined;
 	}
 
 	if (params.references !== undefined) {
-		updates.references = processReferences(params.references);
+		updates.references = processReferences(params.references, allItems);
 	}
 
 	if (params.metadata !== undefined) {
@@ -226,29 +249,19 @@ export const registerManageState = (server: McpServer) => {
 					const isGoal = type === "goal";
 
 					const data = isState ? await getState() : await getProfile();
-					const items = isState && isGoal
-						? data.items.filter((item) => (item.keyResults?.length ?? 0) > 0)
-						: isState
-							? data.items.filter(
-									(item) => (item.keyResults?.length ?? 0) === 0,
-								)
-							: data.items;
 
 					const prefix = isState ? (isGoal ? "g" : "i") : "p";
-					const newItemId = generateId(prefix, items);
+					// Check ALL items in the source for uniqueness, not just filtered ones
+					const newItemId = generateId(prefix, data.items);
 					const now = Date.now();
 
-					const totalKRs = data.items.reduce(
-						(sum, item) => sum + (item.keyResults?.length ?? 0),
-						0,
-					);
-
+					// Pass all items to ensure keyResults and references are unique across all items
 					const processedKeyResults = processKeyResults(
 						keyResults,
 						undefined,
-						totalKRs,
+						data.items,
 					);
-					const processedReferences = processReferences(references);
+					const processedReferences = processReferences(references, data.items);
 
 					const newItem: Item = {
 						id: newItemId,
@@ -340,15 +353,11 @@ export const registerManageState = (server: McpServer) => {
 						throw new Error(`Item with ID ${itemId} not found in ${source}`);
 					}
 
-					const totalKRs = data.items.reduce(
-						(sum, item) => sum + (item.keyResults?.length ?? 0),
-						0,
-					);
-
+					// Pass all items to ensure keyResults and references are unique across all items
 					const updates = buildItemUpdates(
 						existingItem,
 						{ category, desc, tags, status, keyResults, references, metadata },
-						totalKRs,
+						data.items,
 					);
 					updates.updatedAt = Date.now();
 
