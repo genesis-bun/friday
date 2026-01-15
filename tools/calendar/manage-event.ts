@@ -47,18 +47,17 @@ export const registerManageCalendarEvent = (server: McpServer) => {
 				description: z.string().optional().describe("Event description"),
 				recurrence: z
 					.union([
-						z.string().describe(
-							"Recurrence rule as RRULE string (e.g., 'FREQ=DAILY;COUNT=10' or 'FREQ=WEEKLY;BYDAY=MO,WE,FR')",
-						),
+						z
+							.string()
+							.describe(
+								"Recurrence rule as RRULE string (e.g., 'FREQ=DAILY;COUNT=10' or 'FREQ=WEEKLY;BYDAY=MO,WE,FR')",
+							),
 						z
 							.object({
 								frequency: z
 									.enum(["DAILY", "WEEKLY", "MONTHLY", "YEARLY"])
 									.describe("Recurrence frequency"),
-								count: z
-									.number()
-									.optional()
-									.describe("Number of occurrences"),
+								count: z.number().optional().describe("Number of occurrences"),
 								until: z
 									.string()
 									.optional()
@@ -168,7 +167,8 @@ export const registerManageCalendarEvent = (server: McpServer) => {
 						});
 
 						const eventSummary = result.event.summary || title || "event";
-						const isRecurring = !!result.event.recurrence || !!result.event.recurringEventId;
+						const isRecurring =
+							!!result.event.recurrence || !!result.event.recurringEventId;
 						let updateMessage = `Updated calendar event: ${eventSummary}`;
 						if (isRecurring) {
 							if (updateAllInstances) {

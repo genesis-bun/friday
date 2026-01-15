@@ -14,7 +14,9 @@ export const registerQueryState = (server: McpServer) => {
 					.enum(["all", "goals", "thoughts", "profile"])
 					.optional()
 					.default("all")
-					.describe("View filter: 'goals' (state items with keyResults), 'thoughts' (state items without keyResults), 'profile' (persistent knowledge), or 'all'"),
+					.describe(
+						"View filter: 'goals' (state items with keyResults), 'thoughts' (state items without keyResults), 'profile' (persistent knowledge), or 'all'",
+					),
 				category: z
 					.string()
 					.optional()

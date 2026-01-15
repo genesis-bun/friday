@@ -57,7 +57,9 @@ function formatRecurrenceRule(recurrence: RecurrenceRule | string): string[] {
 		parts.push(`COUNT=${recurrence.count}`);
 	} else if (recurrence.until) {
 		const untilDate = new Date(recurrence.until);
-		parts.push(`UNTIL=${untilDate.toISOString().replace(/[-:]/g, "").split(".")[0]}Z`);
+		parts.push(
+			`UNTIL=${untilDate.toISOString().replace(/[-:]/g, "").split(".")[0]}Z`,
+		);
 	}
 
 	if (recurrence.byDay && recurrence.byDay.length > 0) {
@@ -183,7 +185,11 @@ export async function updateEvent(
 				"Cannot change recurrence on a single instance. Use updateAllInstances=true to update the series.",
 			);
 		}
-		if (existingEvent.data.recurrence && !params.updateAllInstances && !isRecurringInstance) {
+		if (
+			existingEvent.data.recurrence &&
+			!params.updateAllInstances &&
+			!isRecurringInstance
+		) {
 			throw new Error(
 				"Cannot change recurrence on a recurring event master. Use updateAllInstances=true.",
 			);

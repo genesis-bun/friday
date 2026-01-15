@@ -46,13 +46,9 @@ function processKeyResults(
 			(ekr) => ekr.id === kr.id || ekr.desc === kr.desc,
 		);
 		const targetNum =
-			typeof kr.target === "string"
-				? parseFloat(kr.target)
-				: kr.target;
+			typeof kr.target === "string" ? parseFloat(kr.target) : kr.target;
 		const currentNum =
-			typeof kr.current === "string"
-				? parseFloat(kr.current)
-				: kr.current;
+			typeof kr.current === "string" ? parseFloat(kr.current) : kr.current;
 
 		// Generate unique ID if not provided
 		let krId = kr.id || existingKr?.id;
@@ -142,8 +138,7 @@ function buildItemUpdates(
 			...(existingItem.metadata || {}),
 			...params.metadata,
 		};
-		updates.metadata =
-			Object.keys(merged).length > 0 ? merged : undefined;
+		updates.metadata = Object.keys(merged).length > 0 ? merged : undefined;
 	}
 
 	return updates;
@@ -158,7 +153,9 @@ export const registerManageState = (server: McpServer) => {
 				source: z
 					.enum(["state", "profile"])
 					.default("state")
-					.describe("Data source: 'state' writes to state.yaml (ephemeral/active work), 'profile' writes to profile.yaml (persistent knowledge). Use 'state' for goals/thoughts, 'profile' for achievements/skills/preferences."),
+					.describe(
+						"Data source: 'state' writes to state.yaml (ephemeral/active work), 'profile' writes to profile.yaml (persistent knowledge). Use 'state' for goals/thoughts, 'profile' for achievements/skills/preferences.",
+					),
 				action: z
 					.enum(["create", "get", "update", "delete", "list"])
 					.describe("Action to perform"),
@@ -180,14 +177,13 @@ export const registerManageState = (server: McpServer) => {
 					.string()
 					.optional()
 					.describe("Description/title (required for create)"),
-				tags: z
-					.array(z.string())
-					.optional()
-					.describe("Tags for organization"),
+				tags: z.array(z.string()).optional().describe("Tags for organization"),
 				status: z
 					.string()
 					.optional()
-					.describe("Status (defaults: 'active' for goals/profile, 'raw' for thoughts)"),
+					.describe(
+						"Status (defaults: 'active' for goals/profile, 'raw' for thoughts)",
+					),
 				keyResults: z
 					.array(
 						z.object({
@@ -269,16 +265,16 @@ export const registerManageState = (server: McpServer) => {
 						desc,
 						tags: tags || [],
 						status:
-							status ||
-							(isState ? (isGoal ? "active" : "raw") : "active"),
+							status || (isState ? (isGoal ? "active" : "raw") : "active"),
 						keyResults:
 							processedKeyResults && processedKeyResults.length > 0
 								? processedKeyResults
 								: undefined,
 						references: processedReferences,
-						metadata: metadata && Object.keys(metadata).length > 0
-							? metadata
-							: undefined,
+						metadata:
+							metadata && Object.keys(metadata).length > 0
+								? metadata
+								: undefined,
 						createdAt: now,
 						updatedAt: now,
 					};
@@ -296,7 +292,12 @@ export const registerManageState = (server: McpServer) => {
 							: `Captured ${category} idea: "${desc.substring(0, 100)}${desc.length > 100 ? "..." : ""}"`
 						: `Added ${category} item to profile: "${desc.substring(0, 50)}${desc.length > 50 ? "..." : ""}"`;
 
-					await log("info", "manage_state", { source, action, type, category }, response);
+					await log(
+						"info",
+						"manage_state",
+						{ source, action, type, category },
+						response,
+					);
 
 					return {
 						content: [
@@ -317,14 +318,20 @@ export const registerManageState = (server: McpServer) => {
 						throw new Error("Item ID is required for getting an item");
 					}
 
-					const data = source === "state" ? await getState() : await getProfile();
+					const data =
+						source === "state" ? await getState() : await getProfile();
 					const item = data.items.find((i) => i.id === itemId);
 
 					if (!item) {
 						throw new Error(`Item with ID ${itemId} not found in ${source}`);
 					}
 
-					await log("info", "manage_state", { source, action, itemId }, "Retrieved item");
+					await log(
+						"info",
+						"manage_state",
+						{ source, action, itemId },
+						"Retrieved item",
+					);
 
 					return {
 						content: [
@@ -341,7 +348,8 @@ export const registerManageState = (server: McpServer) => {
 						throw new Error("Item ID is required for updating");
 					}
 
-					const data = source === "state" ? await getState() : await getProfile();
+					const data =
+						source === "state" ? await getState() : await getProfile();
 					const itemIndex = data.items.findIndex((item) => item.id === itemId);
 
 					if (itemIndex < 0) {
@@ -369,11 +377,17 @@ export const registerManageState = (server: McpServer) => {
 						await updateItem(itemId, updates);
 					}
 
-					const updatedData = source === "state" ? await getState() : await getProfile();
+					const updatedData =
+						source === "state" ? await getState() : await getProfile();
 					const updatedItem = updatedData.items.find((i) => i.id === itemId);
 
 					const response = `Updated ${source} item: ${updatedItem?.desc || itemId}`;
-					await log("info", "manage_state", { source, action, itemId }, response);
+					await log(
+						"info",
+						"manage_state",
+						{ source, action, itemId },
+						response,
+					);
 
 					return {
 						content: [
@@ -396,14 +410,21 @@ export const registerManageState = (server: McpServer) => {
 
 					if (source === "state") {
 						const state = await getState();
-						const updatedItems = state.items.filter((item) => item.id !== itemId);
+						const updatedItems = state.items.filter(
+							(item) => item.id !== itemId,
+						);
 						await updateState({ items: updatedItems });
 					} else {
 						await deleteItem(itemId);
 					}
 
 					const response = `Deleted ${source} item: ${itemId}`;
-					await log("info", "manage_state", { source, action, itemId }, response);
+					await log(
+						"info",
+						"manage_state",
+						{ source, action, itemId },
+						response,
+					);
 
 					return {
 						content: [
@@ -420,7 +441,8 @@ export const registerManageState = (server: McpServer) => {
 				}
 
 				if (action === "list") {
-					const data = source === "state" ? await getState() : await getProfile();
+					const data =
+						source === "state" ? await getState() : await getProfile();
 					let items = data.items;
 
 					if (category) {
@@ -462,7 +484,12 @@ export const registerManageState = (server: McpServer) => {
 				throw new Error(`Unknown action: ${action}`);
 			} catch (error) {
 				const errorMsg = `Failed to manage ${source}: ${String(error)}`;
-				await log("error", "manage_state", { source, action, itemId }, errorMsg);
+				await log(
+					"error",
+					"manage_state",
+					{ source, action, itemId },
+					errorMsg,
+				);
 				return {
 					content: [
 						{

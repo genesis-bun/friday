@@ -31,7 +31,11 @@ export const registerListEvents = (server: McpServer) => {
 		},
 		async ({ days = 30, maxResults, includeRecurringMasters = false }) => {
 			try {
-				const events = await listEvents({ days, maxResults, includeRecurringMasters });
+				const events = await listEvents({
+					days,
+					maxResults,
+					includeRecurringMasters,
+				});
 				const state = await getState();
 				const goals = state.items.filter(
 					(item) => (item.keyResults?.length ?? 0) > 0,
@@ -57,7 +61,8 @@ export const registerListEvents = (server: McpServer) => {
 					if (event.location) simplified.location = event.location;
 					if (event.htmlLink) simplified.htmlLink = event.htmlLink;
 					if (event.recurrence) simplified.recurrence = event.recurrence;
-					if (event.recurringEventId) simplified.recurringEventId = event.recurringEventId;
+					if (event.recurringEventId)
+						simplified.recurringEventId = event.recurringEventId;
 					if (event._isRecurringMaster) simplified.isRecurringMaster = true;
 					if (event._isRecurringInstance) simplified.isRecurringInstance = true;
 
