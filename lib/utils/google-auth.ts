@@ -7,6 +7,8 @@ const PORT = 30012;
 const SCOPES = [
 	"https://www.googleapis.com/auth/calendar.readonly",
 	"https://www.googleapis.com/auth/calendar.events",
+	"https://www.googleapis.com/auth/documents",
+	"https://www.googleapis.com/auth/drive.readonly",
 ];
 const TOKEN_FILE = Bun.file(resolvePath(config.googleTokenFile));
 const REDIRECT_URI = `http://localhost:${PORT}/oauth2callback`;
