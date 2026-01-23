@@ -59,8 +59,6 @@ Add to Cursor settings (`Cmd/Ctrl + ,` → MCP):
 ### Drawings (Excalidraw)
 - **`manage_design`** - Create, append to, update, or delete Excalidraw drawings. Elements are used exactly as provided with no defaults or transformations. For large drawings, use multiple append calls to add elements in chunks.
 - **`list_drawings`** - List all Excalidraw drawings
-- **`list_libraries`** - Discover available Excalidraw libraries. Returns library names, descriptions, item counts, and item names. Libraries are also available as MCP resources.
-- **`view_library`** - View elements from a specific library file with pagination (10 elements per page). All library items are flattened into a single elements array.
 
 ### Media (YouTube/yt-dlp)
 - **`download_media`** - Download videos or audio from YouTube and other supported sites using yt-dlp. Supports configurable quality, format options (video/audio/both), and custom output paths. Downloads are stored in the configured downloads directory.
@@ -76,7 +74,6 @@ Add to Cursor settings (`Cmd/Ctrl + ,` → MCP):
 
 - **`{serverName}://memory/profile`** - Persistent profile layer (YAML) - survives state rotations
 - **`{serverName}://memory/state`** - Active memory state (YAML) - goals, ideas, settings
-- **`{serverName}://library/{name}`** - Excalidraw library resources (available for libraries in `resources/excalidraw/`)
 
 > Replace `{serverName}` with your configured server name from `config.ts`
 
@@ -114,7 +111,7 @@ Environment variables (defaults in `config.ts`):
 
 - `bun run authenticate` - Manually authenticate with Google (MCP can automatically authenticate when needed)
 - `bun run cleanup` - Manually reset state and create a backup (MCP can call this internally)
-- `bun run merge-libraries` - Merge Excalidraw library files
+- `bun run validate` - Validate state.yaml and profile.yaml files against schema definitions
 - `bun run dev` - Run server with hot reload
 - `bun run start` - Run server
 - `bun run check` - Run Biome linter/formatter

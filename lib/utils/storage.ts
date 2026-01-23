@@ -7,6 +7,9 @@ export function deepMerge<T extends Record<string, unknown>>(
 ): T {
 	const result = { ...target };
 	for (const key in source) {
+		if (source[key] === undefined) {
+			continue;
+		}
 		if (
 			source[key] &&
 			typeof source[key] === "object" &&

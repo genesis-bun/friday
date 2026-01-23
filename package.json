@@ -10,7 +10,7 @@
 		"check": "bunx biome check --write",
 		"authenticate": "bun run scripts/authenticate.ts",
 		"cleanup": "bun run scripts/cleanup.ts",
-		"merge-libraries": "bun run scripts/merge-libraries.ts"
+		"validate": "bun run scripts/validate.ts"
 	},
 	"devDependencies": {
 		"@types/bun": "latest",

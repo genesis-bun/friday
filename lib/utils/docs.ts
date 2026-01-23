@@ -68,17 +68,20 @@ function extractTextFromElement(
 ): string {
 	if (!element.paragraph) return "";
 
-	const textRuns = element.paragraph.elements?.map((el) => {
-		if (el.textRun?.content) {
-			return el.textRun.content;
-		}
-		return "";
-	}) || [];
+	const textRuns =
+		element.paragraph.elements?.map((el) => {
+			if (el.textRun?.content) {
+				return el.textRun.content;
+			}
+			return "";
+		}) || [];
 
 	return textRuns.join("");
 }
 
-export function compressDocument(document: docs_v1.Schema$Document): CompressedDocument {
+export function compressDocument(
+	document: docs_v1.Schema$Document,
+): CompressedDocument {
 	const content: string[] = [];
 	const structure: Array<{ type: string; text?: string; level?: number }> = [];
 
@@ -90,9 +93,10 @@ export function compressDocument(document: docs_v1.Schema$Document): CompressedD
 					content.push(text.trim());
 					const paraStyle = element.paragraph.paragraphStyle;
 					const namedStyleType = paraStyle?.namedStyleType || "NORMAL_TEXT";
-					
+
 					if (namedStyleType.startsWith("HEADING_")) {
-						const level = parseInt(namedStyleType.replace("HEADING_", ""), 10) || 1;
+						const level =
+							parseInt(namedStyleType.replace("HEADING_", ""), 10) || 1;
 						structure.push({ type: "heading", text: text.trim(), level });
 					} else {
 						structure.push({ type: "paragraph", text: text.trim() });

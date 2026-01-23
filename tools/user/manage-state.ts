@@ -103,6 +103,7 @@ function buildItemUpdates(
 	existingItem: Item,
 	params: {
 		category?: string;
+		title?: string;
 		desc?: string;
 		tags?: string[];
 		status?: string;
@@ -115,6 +116,7 @@ function buildItemUpdates(
 	const updates: Partial<Item> = {};
 
 	if (params.category !== undefined) updates.category = params.category;
+	if (params.title !== undefined) updates.title = params.title;
 	if (params.desc !== undefined) updates.desc = params.desc;
 	if (params.tags !== undefined) updates.tags = params.tags;
 	if (params.status !== undefined) updates.status = params.status;
@@ -148,7 +150,7 @@ export const registerManageState = (server: McpServer) => {
 	server.registerTool(
 		"manage_state",
 		{
-			description: `${config.systemPrompt}\n\nManage items in state or profile. Both use the same unified schema but serve different purposes:\n\n**STATE (source='state')** - Ephemeral/active work → state.yaml:\n- Goals: Active objectives with keyResults (OKR format)\n- Thoughts: Temporary ideas, plans, notes\n- Lifecycle: Can be archived/cleaned periodically\n\n**PROFILE (source='profile')** - Persistent knowledge → profile.yaml:\n- Achievements, skills, projects, personal info, preferences, knowledge, facts, history\n- Lifecycle: Persists across rotations, rarely deleted\n\n**CONSOLIDATION FIRST**: Check for similar existing items before creating. Add new data to their referenced notes instead. Only create when no suitable container exists.\n\nBoth support optional keyResults, references, and metadata.`,
+			description: `${config.systemPrompt}\n\nManage items in state or profile using unified schema:\n\n**STATE (source='state')** → state.yaml: Ephemeral/active work. Goals (OKR format with keyResults) and thoughts. Archived periodically.\n**PROFILE (source='profile')** → profile.yaml: Persistent knowledge (achievements, skills, projects, preferences, history). Rarely deleted.\n\n**WORKFLOW**: Before creating:\n1. Query existing items (use query_state with minimal=true) to see what already exists\n2. Check for similar items - if similar, add the new content as a ref note instead of creating a new item\n3. If creating a new item, prefer using existing category if relevant over creating new category string (CONSOLIDATION FIRST)\n4. Supports adding optional keyResults, references, and metadata for items if needed.\n\n**NEVER PROVIDE IDS FOR CREATING NEW ITEMS, REFERENCES, OR METADATA. THEY ARE AUTO-GENERATED.**`,
 			inputSchema: {
 				source: z
 					.enum(["state", "profile"])
@@ -173,10 +175,11 @@ export const registerManageState = (server: McpServer) => {
 					.string()
 					.optional()
 					.describe("Category (required for create)"),
+				title: z.string().optional().describe("Title (required for create)"),
 				desc: z
 					.string()
 					.optional()
-					.describe("Description/title (required for create)"),
+					.describe("Description (required for create)"),
 				tags: z.array(z.string()).optional().describe("Tags for organization"),
 				status: z
 					.string()
@@ -187,7 +190,6 @@ export const registerManageState = (server: McpServer) => {
 				keyResults: z
 					.array(
 						z.object({
-							id: z.string().optional(),
 							desc: z.string(),
 							target: z.union([z.string(), z.number()]).optional(),
 							current: z.union([z.string(), z.number()]).optional(),
@@ -198,11 +200,10 @@ export const registerManageState = (server: McpServer) => {
 						}),
 					)
 					.optional()
-					.describe("Key results array"),
+					.describe("Key results array (IDs are auto-generated)"),
 				references: z
 					.array(
 						z.object({
-							id: z.string().optional(),
 							type: z.string(),
 							link: z.string().optional(),
 							metadata: z.record(z.string(), z.unknown()).optional(),
@@ -210,7 +211,7 @@ export const registerManageState = (server: McpServer) => {
 					)
 					.optional()
 					.describe(
-						"References to related items (notes, designs, assets, etc.). For updates, replaces existing references.",
+						"References to related items (notes, designs, assets, etc.). For updates, replaces existing references. IDs are auto-generated.",
 					),
 				metadata: z
 					.record(z.string(), z.unknown())
@@ -226,6 +227,7 @@ export const registerManageState = (server: McpServer) => {
 			itemId,
 			type,
 			category,
+			title,
 			desc,
 			tags,
 			status,
@@ -235,9 +237,9 @@ export const registerManageState = (server: McpServer) => {
 		}) => {
 			try {
 				if (action === "create") {
-					if (!desc || !category) {
+					if (!desc || !category || !title) {
 						throw new Error(
-							"Description and category are required for creating",
+							"Title, description, and category are required for creating",
 						);
 					}
 
@@ -262,19 +264,20 @@ export const registerManageState = (server: McpServer) => {
 					const newItem: Item = {
 						id: newItemId,
 						category,
+						title,
 						desc,
 						tags: tags || [],
 						status:
 							status || (isState ? (isGoal ? "active" : "raw") : "active"),
-						keyResults:
-							processedKeyResults && processedKeyResults.length > 0
-								? processedKeyResults
-								: undefined,
-						references: processedReferences,
-						metadata:
-							metadata && Object.keys(metadata).length > 0
-								? metadata
-								: undefined,
+						...(processedKeyResults && processedKeyResults.length > 0
+							? { keyResults: processedKeyResults }
+							: {}),
+						...(processedReferences && processedReferences.length > 0
+							? { references: processedReferences }
+							: {}),
+						...(metadata && Object.keys(metadata).length > 0
+							? { metadata }
+							: {}),
 						createdAt: now,
 						updatedAt: now,
 					};
@@ -364,7 +367,16 @@ export const registerManageState = (server: McpServer) => {
 					// Pass all items to ensure keyResults and references are unique across all items
 					const updates = buildItemUpdates(
 						existingItem,
-						{ category, desc, tags, status, keyResults, references, metadata },
+						{
+							category,
+							title,
+							desc,
+							tags,
+							status,
+							keyResults,
+							references,
+							metadata,
+						},
 						data.items,
 					);
 					updates.updatedAt = Date.now();

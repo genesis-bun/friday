@@ -21,6 +21,7 @@ const referenceSchema = z.object({
 const ItemSchema = z.object({
 	id: z.string(),
 	category: z.string(),
+	title: z.string(),
 	desc: z.string(),
 	tags: z.array(z.string()).default([]),
 	status: z.string().default("active"),

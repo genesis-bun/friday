@@ -1,14 +1,25 @@
 import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { z } from "zod";
 import { config } from "@/config.ts";
+import type { Item } from "@/lib/db/schema.ts";
 import { log } from "@/lib/utils/logger.ts";
 import { getProfile, getState, matchesKeyword } from "@/lib/utils/state.ts";
+
+function toMinimalItem(item: Item) {
+	return {
+		id: item.id,
+		title: item.title,
+		category: item.category,
+		status: item.status,
+		tags: item.tags.slice(0, 2),
+	};
+}
 
 export const registerQueryState = (server: McpServer) => {
 	server.registerTool(
 		"query_state",
 		{
-			description: `${config.systemPrompt}\n\nQuery items from state or profile. Returns raw data for LLM to parse and format.\n\n**STATE** - Ephemeral/active work from state.yaml:\n- Goals: Active objectives with keyResults (OKR format)\n- Thoughts: Temporary ideas, plans, notes\n\n**PROFILE** - Persistent knowledge from profile.yaml:\n- Achievements, skills, projects, personal info, preferences, knowledge, facts, history\n\nFilter by view (goals/thoughts/profile), category, tags, or keyword (searches desc, category, and tags).`,
+			description: `${config.systemPrompt}\n\nQuery items from state or profile. Returns raw data for LLM to parse and format.\n\n**STATE** - Ephemeral/active work from state.yaml:\n- Goals: Active objectives with keyResults (OKR format)\n- Thoughts: Temporary ideas, plans, notes\n\n**PROFILE** - Persistent knowledge from profile.yaml:\n- Achievements, skills, projects, personal info, preferences, knowledge, facts, history\n\nFilter by view (goals/thoughts/profile), category, tags, or keyword (searches desc, category, and tags). Set minimal=true to return only essential fields (id, title, category, status, top 2 tags) to save tokens.`,
 			inputSchema: {
 				view: z
 					.enum(["all", "goals", "thoughts", "profile"])
@@ -41,9 +52,16 @@ export const registerQueryState = (server: McpServer) => {
 					.describe(
 						"Limit number of items returned (optional, no limit if not specified)",
 					),
+				minimal: z
+					.boolean()
+					.optional()
+					.default(false)
+					.describe(
+						"If true, returns only essential fields (id, title, category, status, top 2 tags) to save tokens when state is large",
+					),
 			},
 		},
-		async ({ view, category, tags, keyword, limit }) => {
+		async ({ view, category, tags, keyword, limit, minimal }) => {
 			try {
 				const state = await getState();
 				const profile = await getProfile().catch(() => null);
@@ -62,7 +80,7 @@ export const registerQueryState = (server: McpServer) => {
 					if (limit !== undefined) {
 						goals = goals.slice(0, limit);
 					}
-					output.goals = goals;
+					output.goals = minimal ? goals.map(toMinimalItem) : goals;
 				}
 
 				if (view === "thoughts" || view === "all") {
@@ -83,7 +101,7 @@ export const registerQueryState = (server: McpServer) => {
 					if (limit !== undefined) {
 						thoughts = thoughts.slice(0, limit);
 					}
-					output.thoughts = thoughts;
+					output.thoughts = minimal ? thoughts.map(toMinimalItem) : thoughts;
 				}
 
 				if (view === "profile" || view === "all") {
@@ -103,7 +121,10 @@ export const registerQueryState = (server: McpServer) => {
 						if (limit !== undefined) {
 							items = items.slice(0, limit);
 						}
-						output.profile = { ...profile, items };
+						output.profile = {
+							...profile,
+							items: minimal ? items.map(toMinimalItem) : items,
+						};
 					} else {
 						output.profile = null;
 					}
@@ -112,7 +133,7 @@ export const registerQueryState = (server: McpServer) => {
 				await log(
 					"info",
 					"query_state",
-					{ view, category, tags, keyword, limit },
+					{ view, category, tags, keyword, limit, minimal },
 					"State queried",
 				);
 
@@ -129,7 +150,7 @@ export const registerQueryState = (server: McpServer) => {
 				await log(
 					"error",
 					"query_state",
-					{ view, category, keyword },
+					{ view, category, keyword, minimal },
 					errorMsg,
 				);
 				return {

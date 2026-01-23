@@ -14,7 +14,7 @@ export const registerManageDesign = (server: McpServer) => {
 	server.registerTool(
 		"manage_design",
 		{
-			description: `${config.systemPrompt}\n\nCreate, update, append to, or delete an Excalidraw drawing. Elements are used exactly as provided with no defaults or transformations. For large drawings, use multiple append calls to add elements in chunks. Run tool list_drawings to get the path to the drawing you want to manage. Run tool list_libraries to get the path to the library you want to use. Run tool view_library to view the library you want to use.`,
+			description: `${config.systemPrompt}\n\nCreate, update, append to, or delete an Excalidraw drawing. Elements are used exactly as provided with no defaults or transformations. For large drawings, use multiple append calls to add elements in chunks. Run tool list_drawings to get the path to the drawing you want to manage.`,
 			inputSchema: {
 				action: z
 					.enum(["create", "append", "update", "delete"])
