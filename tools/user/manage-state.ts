@@ -41,6 +41,11 @@ function processKeyResults(
 ): KeyResult[] | undefined {
 	if (!keyResults) return existingKeyResults;
 
+	// Create a separate tracking array for ID generation to avoid mutating allItems
+	const idTrackingItems: Array<{ keyResults?: Array<{ id: string }> }> = [
+		...allItems,
+	];
+
 	return keyResults.map((kr) => {
 		const existingKr = existingKeyResults?.find(
 			(ekr) => ekr.id === kr.id || ekr.desc === kr.desc,
@@ -53,9 +58,10 @@ function processKeyResults(
 		// Generate unique ID if not provided
 		let krId = kr.id || existingKr?.id;
 		if (!krId) {
-			krId = generateKeyResultId(allItems);
-			// Add to allItems temporarily to avoid collisions within the same batch
-			allItems.push({ keyResults: [{ id: krId } as KeyResult] });
+			krId = generateKeyResultId(idTrackingItems);
+			// Add to tracking array temporarily to avoid collisions within the same batch
+			// This array is only used for ID generation and won't be merged into state
+			idTrackingItems.push({ keyResults: [{ id: krId }] });
 		}
 
 		return {
@@ -81,13 +87,19 @@ function processReferences(
 ): Reference[] | undefined {
 	if (!references) return undefined;
 
+	// Create a separate tracking array for ID generation to avoid mutating allItems
+	const idTrackingItems: Array<{ references?: Array<{ id: string }> }> = [
+		...allItems,
+	];
+
 	return references.map((ref) => {
 		// Generate unique ID if not provided
 		let refId = ref.id;
 		if (!refId) {
-			refId = generateReferenceId(allItems);
-			// Add to allItems temporarily to avoid collisions within the same batch
-			allItems.push({ references: [{ id: refId } as Reference] });
+			refId = generateReferenceId(idTrackingItems);
+			// Add to tracking array temporarily to avoid collisions within the same batch
+			// This array is only used for ID generation and won't be merged into state
+			idTrackingItems.push({ references: [{ id: refId }] });
 		}
 
 		return {
