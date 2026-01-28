@@ -6,6 +6,7 @@ import { registerMemoryProfileResource } from "./resources/memory-profile.ts";
 import { registerMemoryStateResource } from "./resources/memory-state.ts";
 import { registerGenerateCalendarLink } from "./tools/calendar/generate-calendar-link.ts";
 import { registerGetDate } from "./tools/calendar/get-date.ts";
+import { registerGetEvent } from "./tools/calendar/get-event.ts";
 import { registerListEvents } from "./tools/calendar/list-events.ts";
 import { registerManageCalendarEvent } from "./tools/calendar/manage-event.ts";
 import { registerListDrawings } from "./tools/excalidraw/list-drawings.ts";
@@ -41,6 +42,7 @@ await initializeGenerated();
 
 registerHealthCheck(server);
 registerGetDate(server);
+registerGetEvent(server);
 registerMemoryStateResource(server);
 registerMemoryProfileResource(server);
 registerManageState(server);
