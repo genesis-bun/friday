@@ -26,6 +26,9 @@ import { registerPromoteThought } from "./tools/workflows/promote-thought.ts";
 import { registerReviewThoughts } from "./tools/workflows/review-thoughts.ts";
 import { registerSyncGoals } from "./tools/workflows/sync-goals.ts";
 import { registerDownloadMedia } from "./tools/ytdlp/download.ts";
+import { registerSendEmail } from "./tools/gmail/send-email.ts";
+import { registerListEmails } from "./tools/gmail/list-emails.ts";
+import { registerGetEmail } from "./tools/gmail/get-email.ts";
 
 const server = new McpServer({
 	name: config.serverName,
@@ -58,6 +61,9 @@ registerGetDocument(server);
 registerManageDocument(server);
 registerRunShortcut(server);
 registerListShortcuts(server);
+registerSendEmail(server);
+registerListEmails(server);
+registerGetEmail(server);
 
 const transport = new StdioServerTransport();
 await server.connect(transport);

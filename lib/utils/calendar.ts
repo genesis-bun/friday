@@ -33,11 +33,13 @@ export interface CreateEventParams {
 	endTime?: string;
 	timezone?: string;
 	recurrence?: RecurrenceRule | string;
+	addMeetLink?: boolean;
 }
 
 export interface CreateEventResult {
 	id?: string;
 	htmlLink?: string;
+	meetLink?: string;
 	event: calendar_v3.Schema$Event;
 }
 
@@ -109,15 +111,31 @@ export async function createEvent(
 		requestBody.recurrence = formatRecurrenceRule(params.recurrence);
 	}
 
+	if (params.addMeetLink) {
+		requestBody.conferenceData = {
+			createRequest: {
+				conferenceSolutionKey: { type: "hangoutsMeet" },
+				requestId: crypto.randomUUID(),
+			},
+		};
+	}
+
 	const calendar = await getCalendarClient();
 	const event = await calendar.events.insert({
 		calendarId: "primary",
 		requestBody,
+		conferenceDataVersion: params.addMeetLink ? 1 : undefined,
 	});
+
+	const meetLink =
+		event.data.conferenceData?.entryPoints?.find(
+			(ep) => ep.entryPointType === "video",
+		)?.uri || undefined;
 
 	return {
 		id: event.data.id || undefined,
 		htmlLink: event.data.htmlLink || undefined,
+		meetLink,
 		event: event.data,
 	};
 }
@@ -142,6 +160,7 @@ export interface UpdateEventParams {
 	timezone?: string;
 	recurrence?: RecurrenceRule | string;
 	updateAllInstances?: boolean;
+	addMeetLink?: boolean;
 }
 
 export async function updateEvent(
@@ -174,6 +193,7 @@ export async function updateEvent(
 		start?: { dateTime: string; timeZone: string };
 		end?: { dateTime: string; timeZone: string };
 		recurrence?: string[];
+		conferenceData?: calendar_v3.Schema$ConferenceData;
 	} = {};
 
 	if (params.title !== undefined) updateData.summary = params.title;
@@ -230,15 +250,31 @@ export async function updateEvent(
 		validateEventTimes(startDate, endDate);
 	}
 
+	if (params.addMeetLink) {
+		updateData.conferenceData = {
+			createRequest: {
+				conferenceSolutionKey: { type: "hangoutsMeet" },
+				requestId: crypto.randomUUID(),
+			},
+		};
+	}
+
 	const event = await calendar.events.update({
 		calendarId: "primary",
 		eventId: targetEventId,
 		requestBody: updateData,
+		conferenceDataVersion: params.addMeetLink ? 1 : undefined,
 	});
+
+	const meetLink =
+		event.data.conferenceData?.entryPoints?.find(
+			(ep) => ep.entryPointType === "video",
+		)?.uri || undefined;
 
 	return {
 		id: event.data.id || undefined,
 		htmlLink: event.data.htmlLink || undefined,
+		meetLink,
 		event: event.data,
 	};
 }

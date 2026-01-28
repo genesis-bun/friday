@@ -101,6 +101,10 @@ export const registerManageCalendarEvent = (server: McpServer) => {
 					.describe(
 						"Whether to send notifications about the event deletion. Defaults to 'none'.",
 					),
+				addMeetLink: z
+					.boolean()
+					.optional()
+					.describe("Create a Google Meet link for this event"),
 			},
 		},
 		async ({
@@ -114,6 +118,7 @@ export const registerManageCalendarEvent = (server: McpServer) => {
 			recurrence,
 			updateAllInstances = false,
 			sendUpdates = "none",
+			addMeetLink,
 		}) => {
 			try {
 				const tz = timezone || config.timezone;
@@ -122,6 +127,7 @@ export const registerManageCalendarEvent = (server: McpServer) => {
 					message: string;
 					event?: Event;
 					eventLink?: string;
+					meetLink?: string;
 				};
 
 				switch (action) {
@@ -139,6 +145,7 @@ export const registerManageCalendarEvent = (server: McpServer) => {
 							endTime,
 							timezone: tz,
 							recurrence,
+							addMeetLink,
 						});
 
 						response = {
@@ -146,6 +153,7 @@ export const registerManageCalendarEvent = (server: McpServer) => {
 							message: `Created calendar event: ${title}`,
 							event: result.event,
 							eventLink: result.htmlLink,
+							meetLink: result.meetLink,
 						};
 						break;
 					}
@@ -164,6 +172,7 @@ export const registerManageCalendarEvent = (server: McpServer) => {
 							timezone: tz,
 							recurrence,
 							updateAllInstances,
+							addMeetLink,
 						});
 
 						const eventSummary = result.event.summary || title || "event";
@@ -183,6 +192,7 @@ export const registerManageCalendarEvent = (server: McpServer) => {
 							message: updateMessage,
 							event: result.event,
 							eventLink: result.htmlLink,
+							meetLink: result.meetLink,
 						};
 						break;
 					}

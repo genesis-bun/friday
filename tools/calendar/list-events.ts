@@ -66,6 +66,13 @@ export const registerListEvents = (server: McpServer) => {
 					if (event._isRecurringMaster) simplified.isRecurringMaster = true;
 					if (event._isRecurringInstance) simplified.isRecurringInstance = true;
 
+					// Extract meet link from conference data
+					const meetLink =
+						event.conferenceData?.entryPoints?.find(
+							(ep) => ep.entryPointType === "video",
+						)?.uri || undefined;
+					if (meetLink) simplified.meetLink = meetLink;
+
 					return simplified;
 				});
 
