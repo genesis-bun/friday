@@ -4,7 +4,7 @@ import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { z } from "zod";
 import { config } from "@/config.ts";
 import { log } from "@/lib/utils/logger.ts";
-import { resolvePath } from "@/lib/utils/path.ts";
+import { resolvePath, resolveVaultPath } from "@/lib/utils/path.ts";
 
 export const registerListNotes = (server: McpServer) => {
 	server.registerTool(
@@ -37,12 +37,9 @@ export const registerListNotes = (server: McpServer) => {
 				}
 
 				const vaultRoot = resolvePath(config.obsidianVault);
-				const searchPath = folder ? join(vaultRoot, folder) : vaultRoot;
-
-				// Ensure searchPath is within vaultRoot for safety
-				if (!searchPath.startsWith(vaultRoot)) {
-					throw new Error("Folder path must be within the obsidian vault");
-				}
+				const searchPath = folder
+					? resolveVaultPath(folder, vaultRoot)
+					: vaultRoot;
 
 				await Bun.$`mkdir -p ${searchPath}`.quiet();
 
@@ -55,17 +52,14 @@ export const registerListNotes = (server: McpServer) => {
 					const stats = await stat(fullPath);
 					const isDirectory = stats.isDirectory();
 
-					// Filter by dirOnly
 					if (dirOnly && !isDirectory) continue;
 					if (!dirOnly && isDirectory) continue;
 					if (!dirOnly && !relativePath.endsWith(".md")) continue;
 
-					// Calculate path relative to vault root for consistent output
 					const vaultRelativePath = folder
 						? join(folder, relativePath)
 						: relativePath;
 
-					// Filter by keywords
 					const filename = relativePath.split("/").pop() || "";
 					if (keywords.length > 0) {
 						const matches = keywords.some((kw) =>

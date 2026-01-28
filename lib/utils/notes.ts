@@ -1,7 +1,7 @@
 import { mkdir } from "node:fs/promises";
 import { dirname, join } from "node:path";
 import { config } from "@/config.ts";
-import { resolvePath } from "./path.ts";
+import { resolvePath, resolveVaultPath } from "./path.ts";
 import { getProfile, getState, updateProfile, updateState } from "./state.ts";
 
 export async function generateNotePath(title: string): Promise<string> {
@@ -43,7 +43,7 @@ export async function writeNote(
 	}
 
 	const vaultPath = resolvePath(config.obsidianVault);
-	const fullPath = join(vaultPath, path);
+	const fullPath = resolveVaultPath(path, vaultPath);
 	const dirPath = dirname(fullPath);
 
 	await mkdir(dirPath, { recursive: true });
@@ -57,7 +57,7 @@ export async function deleteNote(path: string): Promise<void> {
 	}
 
 	const vaultPath = resolvePath(config.obsidianVault);
-	const fullPath = `${vaultPath}/${path}`;
+	const fullPath = resolveVaultPath(path, vaultPath);
 
 	const file = Bun.file(fullPath);
 	if (!(await file.exists())) {
@@ -73,7 +73,7 @@ export async function readNote(path: string): Promise<string> {
 	}
 
 	const vaultPath = resolvePath(config.obsidianVault);
-	const fullPath = `${vaultPath}/${path}`;
+	const fullPath = resolveVaultPath(path, vaultPath);
 
 	const file = Bun.file(fullPath);
 	if (!(await file.exists())) {
@@ -169,16 +169,20 @@ export async function moveNote(
 	}
 
 	const vaultPath = resolvePath(config.obsidianVault);
-	const oldFullPath = `${vaultPath}/${oldPath}`;
-	const newFullPath = `${vaultPath}/${newPath}`;
+	const oldFullPath = resolveVaultPath(oldPath, vaultPath);
+	const newFullPath = resolveVaultPath(newPath, vaultPath);
 
 	const file = Bun.file(oldFullPath);
 	if (!(await file.exists())) {
 		throw new Error(`Note not found: ${oldPath}`);
 	}
 
-	await Bun.$`mkdir -p ${newFullPath.split("/").slice(0, -1).join("/")}`.quiet();
-	await Bun.$`mv ${oldFullPath} ${newFullPath}`.quiet();
+	const newDirPath = dirname(newFullPath);
+	await mkdir(newDirPath, { recursive: true });
+
+	const content = await file.text();
+	await Bun.write(newFullPath, content);
+	await Bun.$`rm ${oldFullPath}`.quiet();
 	return newPath;
 }
 

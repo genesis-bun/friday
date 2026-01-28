@@ -5,6 +5,7 @@ import {
 	createEvent,
 	deleteEvent,
 	type Event,
+	generateCalendarLink,
 	updateEvent,
 } from "@/lib/utils/calendar.ts";
 import { log } from "@/lib/utils/logger.ts";
@@ -13,7 +14,7 @@ export const registerManageCalendarEvent = (server: McpServer) => {
 	server.registerTool(
 		"manage_event",
 		{
-			description: `${config.systemPrompt}\n\nCreate, update, or delete events in Google Calendar. Times must be in format "DD-MM-YYYY HH-MM" (e.g., "01-01-2024 14-00"). Timezone conversion happens automatically.\n\nSupports recurring events via recurrence parameter - use RRULE string format or recurrence object with frequency (DAILY/WEEKLY/MONTHLY/YEARLY), count/until, interval, and optional byDay/byMonth/byMonthDay.\n\nFor updating recurring events: use updateAllInstances=true to update the entire series, or false/omit to update only the single instance.`,
+			description: `${config.systemPrompt}\n\nCreate, update, or delete events in Google Calendar. Times must be in format "DD-MM-YYYY HH-MM" (e.g., "01-01-2024 14-00"). Timezone conversion happens automatically.\n\nOptional fields for create/update: location (address or venue), attendees (array of emails or objects with email/displayName), reminders (use "default" or array of reminder objects with minutes and method).\n\nFor updates: only provide the fields you want to change. All other fields will be preserved automatically.\n\nSupports recurring events via recurrence parameter - use RRULE string format or recurrence object with frequency (DAILY/WEEKLY/MONTHLY/YEARLY), count/until, interval, and optional byDay/byMonth/byMonthDay.\n\nFor updating recurring events: use updateAllInstances=true to update the entire series, or false/omit to update only the single instance.`,
 			inputSchema: {
 				action: z
 					.enum(["create", "update", "delete"])
@@ -30,7 +31,7 @@ export const registerManageCalendarEvent = (server: McpServer) => {
 					.string()
 					.optional()
 					.describe(
-						'Start time in format "DD-MM-YYYY HH-MM" (e.g., "01-01-2024 14-00"). Required for create and update.',
+						'Start time in format "DD-MM-YYYY HH-MM" (e.g., "01-01-2024 14-00"). Required for create, optional for update.',
 					),
 				endTime: z
 					.string()
@@ -45,6 +46,55 @@ export const registerManageCalendarEvent = (server: McpServer) => {
 						"Override timezone (defaults to configured timezone). Use IANA timezone names like 'America/New_York'.",
 					),
 				description: z.string().optional().describe("Event description"),
+				location: z
+					.string()
+					.optional()
+					.describe("Event location (address or venue name)"),
+				attendees: z
+					.union([
+						z.array(z.string()).describe("Array of attendee email addresses"),
+						z
+							.array(
+								z.object({
+									email: z.string().describe("Attendee email address"),
+									displayName: z
+										.string()
+										.optional()
+										.describe("Optional display name for the attendee"),
+								}),
+							)
+							.describe(
+								"Array of attendee objects with email and optional displayName",
+							),
+					])
+					.optional()
+					.describe(
+						"Event attendees - can be array of email strings or objects with email/displayName",
+					),
+				reminders: z
+					.union([
+						z.literal("default").describe("Use default reminder settings"),
+						z
+							.array(
+								z.object({
+									minutes: z
+										.number()
+										.describe("Minutes before the event to send reminder"),
+									method: z
+										.enum(["email", "popup"])
+										.optional()
+										.default("popup")
+										.describe(
+											"Reminder method: 'email' or 'popup' (default: 'popup')",
+										),
+								}),
+							)
+							.describe("Array of custom reminders"),
+					])
+					.optional()
+					.describe(
+						"Event reminders - use 'default' for default settings, or array of reminder objects with minutes and optional method",
+					),
 				recurrence: z
 					.union([
 						z
@@ -115,6 +165,9 @@ export const registerManageCalendarEvent = (server: McpServer) => {
 			endTime,
 			timezone,
 			description,
+			location,
+			attendees,
+			reminders,
 			recurrence,
 			updateAllInstances = false,
 			sendUpdates = "none",
@@ -128,6 +181,7 @@ export const registerManageCalendarEvent = (server: McpServer) => {
 					event?: Event;
 					eventLink?: string;
 					meetLink?: string;
+					calendarLink?: string;
 				};
 
 				switch (action) {
@@ -144,6 +198,9 @@ export const registerManageCalendarEvent = (server: McpServer) => {
 							startTime,
 							endTime,
 							timezone: tz,
+							location,
+							attendees,
+							reminders,
 							recurrence,
 							addMeetLink,
 						});
@@ -154,6 +211,7 @@ export const registerManageCalendarEvent = (server: McpServer) => {
 							event: result.event,
 							eventLink: result.htmlLink,
 							meetLink: result.meetLink,
+							calendarLink: generateCalendarLink(result.event),
 						};
 						break;
 					}
@@ -170,6 +228,9 @@ export const registerManageCalendarEvent = (server: McpServer) => {
 							startTime,
 							endTime,
 							timezone: tz,
+							location,
+							attendees,
+							reminders,
 							recurrence,
 							updateAllInstances,
 							addMeetLink,
@@ -193,6 +254,7 @@ export const registerManageCalendarEvent = (server: McpServer) => {
 							event: result.event,
 							eventLink: result.htmlLink,
 							meetLink: result.meetLink,
+							calendarLink: generateCalendarLink(result.event),
 						};
 						break;
 					}

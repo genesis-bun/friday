@@ -6,7 +6,7 @@ import { config } from "@/config.ts";
 import { findSimilarNotes } from "@/lib/semantic.ts";
 import { log } from "@/lib/utils/logger.ts";
 import { readNote } from "@/lib/utils/notes.ts";
-import { resolvePath } from "@/lib/utils/path.ts";
+import { resolvePath, resolveVaultPath } from "@/lib/utils/path.ts";
 
 export const registerConsultVault = (server: McpServer) => {
 	server.registerTool(
@@ -37,11 +37,9 @@ export const registerConsultVault = (server: McpServer) => {
 				}
 
 				const vaultRoot = resolvePath(config.obsidianVault);
-				const searchPath = folder ? join(vaultRoot, folder) : vaultRoot;
-
-				if (!searchPath.startsWith(vaultRoot)) {
-					throw new Error("Folder path must be within the obsidian vault");
-				}
+				const searchPath = folder
+					? resolveVaultPath(folder, vaultRoot)
+					: vaultRoot;
 
 				await Bun.$`mkdir -p ${searchPath}`.quiet();
 

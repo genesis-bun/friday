@@ -20,7 +20,9 @@ export const registerListEmails = (server: McpServer) => {
 					.number()
 					.optional()
 					.default(10)
-					.describe("Maximum number of results per page (default: 10, max: 10)"),
+					.describe(
+						"Maximum number of results per page (default: 10, max: 10)",
+					),
 				pageToken: z
 					.string()
 					.optional()
@@ -63,7 +65,12 @@ export const registerListEmails = (server: McpServer) => {
 				};
 			} catch (error) {
 				const msg = error instanceof Error ? error.message : "Unknown error";
-				await log("error", "list_emails", { query, maxResults, pageToken }, msg);
+				await log(
+					"error",
+					"list_emails",
+					{ query, maxResults, pageToken },
+					msg,
+				);
 				return {
 					content: [
 						{

@@ -4,11 +4,16 @@ import { config } from "./config.ts";
 import { initializeGenerated } from "./lib/utils/init.ts";
 import { registerMemoryProfileResource } from "./resources/memory-profile.ts";
 import { registerMemoryStateResource } from "./resources/memory-state.ts";
+import { registerGenerateCalendarLink } from "./tools/calendar/generate-calendar-link.ts";
 import { registerGetDate } from "./tools/calendar/get-date.ts";
 import { registerListEvents } from "./tools/calendar/list-events.ts";
 import { registerManageCalendarEvent } from "./tools/calendar/manage-event.ts";
 import { registerListDrawings } from "./tools/excalidraw/list-drawings.ts";
 import { registerManageDesign } from "./tools/excalidraw/manage-design.ts";
+import { registerGetEmail } from "./tools/gmail/get-email.ts";
+import { registerListEmails } from "./tools/gmail/list-emails.ts";
+import { registerPreviewEmail } from "./tools/gmail/preview-email.ts";
+import { registerSendEmail } from "./tools/gmail/send-email.ts";
 import { registerGetDocument } from "./tools/google-docs/get-document.ts";
 import { registerListDocuments } from "./tools/google-docs/list-documents.ts";
 import { registerManageDocument } from "./tools/google-docs/manage-document.ts";
@@ -26,9 +31,6 @@ import { registerPromoteThought } from "./tools/workflows/promote-thought.ts";
 import { registerReviewThoughts } from "./tools/workflows/review-thoughts.ts";
 import { registerSyncGoals } from "./tools/workflows/sync-goals.ts";
 import { registerDownloadMedia } from "./tools/ytdlp/download.ts";
-import { registerSendEmail } from "./tools/gmail/send-email.ts";
-import { registerListEmails } from "./tools/gmail/list-emails.ts";
-import { registerGetEmail } from "./tools/gmail/get-email.ts";
 
 const server = new McpServer({
 	name: config.serverName,
@@ -56,6 +58,7 @@ registerSyncGoals(server);
 registerDownloadMedia(server);
 registerListEvents(server);
 registerManageCalendarEvent(server);
+registerGenerateCalendarLink(server);
 registerListDocuments(server);
 registerGetDocument(server);
 registerManageDocument(server);
@@ -64,6 +67,6 @@ registerListShortcuts(server);
 registerSendEmail(server);
 registerListEmails(server);
 registerGetEmail(server);
-
+registerPreviewEmail(server);
 const transport = new StdioServerTransport();
 await server.connect(transport);

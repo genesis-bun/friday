@@ -8,6 +8,33 @@ export async function getGmailClient() {
 	});
 }
 
+export function sanitizeEmailHeader(value: string): string {
+	return value.replace(/[\r\n]/g, "").trim();
+}
+
+export function validateEmailAddress(email: string): boolean {
+	if (!email || email.length > 254) {
+		return false;
+	}
+	const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+	return emailRegex.test(email);
+}
+
+export function validateEmailList(emails: string): string[] {
+	const emailList = emails
+		.split(",")
+		.map((e) => sanitizeEmailHeader(e))
+		.filter(Boolean);
+
+	for (const email of emailList) {
+		if (!validateEmailAddress(email)) {
+			throw new Error(`Invalid email address: ${email}`);
+		}
+	}
+
+	return emailList;
+}
+
 export interface SendEmailParams {
 	to: string;
 	subject: string;
@@ -23,6 +50,46 @@ export interface SendEmailResult {
 	threadId?: string;
 }
 
+export interface EmailPreview {
+	from: string;
+	to: string[];
+	cc?: string[];
+	bcc?: string[];
+	replyTo?: string;
+	subject: string;
+	body: string;
+	isHtml: boolean;
+}
+
+export function formatEmailPreview(
+	params: SendEmailParams,
+	fromEmail: string,
+): EmailPreview {
+	const toEmails = validateEmailList(params.to);
+	const preview: EmailPreview = {
+		from: fromEmail,
+		to: toEmails,
+		subject: sanitizeEmailHeader(params.subject),
+		body: params.body,
+		isHtml: params.isHtml || false,
+	};
+
+	if (params.cc) {
+		preview.cc = validateEmailList(params.cc);
+	}
+	if (params.bcc) {
+		preview.bcc = validateEmailList(params.bcc);
+	}
+	if (params.replyTo) {
+		const replyToEmail = sanitizeEmailHeader(params.replyTo);
+		if (validateEmailAddress(replyToEmail)) {
+			preview.replyTo = replyToEmail;
+		}
+	}
+
+	return preview;
+}
+
 export async function sendEmail(
 	params: SendEmailParams,
 ): Promise<SendEmailResult> {
@@ -34,15 +101,33 @@ export async function sendEmail(
 		throw new Error("Could not determine user email address");
 	}
 
+	const toEmails = validateEmailList(params.to);
+	if (toEmails.length === 0) {
+		throw new Error("At least one valid 'to' email address is required");
+	}
+
 	const lines: string[] = [];
 	lines.push(`From: ${userEmail}`);
-	lines.push(`To: ${params.to}`);
+	lines.push(`To: ${toEmails.join(", ")}`);
 
-	if (params.cc) lines.push(`Cc: ${params.cc}`);
-	if (params.bcc) lines.push(`Bcc: ${params.bcc}`);
-	if (params.replyTo) lines.push(`Reply-To: ${params.replyTo}`);
+	if (params.cc) {
+		const ccEmails = validateEmailList(params.cc);
+		lines.push(`Cc: ${ccEmails.join(", ")}`);
+	}
+	if (params.bcc) {
+		const bccEmails = validateEmailList(params.bcc);
+		lines.push(`Bcc: ${bccEmails.join(", ")}`);
+	}
+	if (params.replyTo) {
+		const replyToEmail = sanitizeEmailHeader(params.replyTo);
+		if (!validateEmailAddress(replyToEmail)) {
+			throw new Error(`Invalid reply-to email address: ${params.replyTo}`);
+		}
+		lines.push(`Reply-To: ${replyToEmail}`);
+	}
 
-	lines.push(`Subject: ${params.subject}`);
+	const sanitizedSubject = sanitizeEmailHeader(params.subject);
+	lines.push(`Subject: ${sanitizedSubject}`);
 
 	if (params.isHtml) {
 		lines.push("Content-Type: text/html; charset=utf-8");
@@ -193,8 +278,8 @@ export async function getEmail(messageId: string): Promise<CompressedEmail> {
 	const message = response.data;
 	const headers = message.payload?.headers || [];
 	const getHeader = (name: string) =>
-		headers.find((h) => h.name?.toLowerCase() === name.toLowerCase())
-			?.value || "";
+		headers.find((h) => h.name?.toLowerCase() === name.toLowerCase())?.value ||
+		"";
 
 	const getBody = (part: gmail_v1.Schema$MessagePart): string => {
 		if (part.body?.data) {
@@ -252,9 +337,22 @@ export async function getEmail(messageId: string): Promise<CompressedEmail> {
 		threadId: message.threadId || "",
 		headers: {
 			from: getHeader("From"),
-			to: toHeader.split(",").map((e) => e.trim()).filter(Boolean),
-			cc: ccHeader ? ccHeader.split(",").map((e) => e.trim()).filter(Boolean) : undefined,
-			bcc: bccHeader ? bccHeader.split(",").map((e) => e.trim()).filter(Boolean) : undefined,
+			to: toHeader
+				.split(",")
+				.map((e) => e.trim())
+				.filter(Boolean),
+			cc: ccHeader
+				? ccHeader
+						.split(",")
+						.map((e) => e.trim())
+						.filter(Boolean)
+				: undefined,
+			bcc: bccHeader
+				? bccHeader
+						.split(",")
+						.map((e) => e.trim())
+						.filter(Boolean)
+				: undefined,
 			subject: getHeader("Subject"),
 			date: getHeader("Date"),
 		},

@@ -1,8 +1,8 @@
 ---
-description: Development with Bun: Standards and Best Practices
+description: Development with Bun: Standards and Best Practices. For development purposes only, not MCP tool calls.
 alwaysApply: false
 ---
-Default to using Bun instead of Node.js.
+Default to using Bun instead of Node.js
 
 - Use `bun <file>` instead of `node <file>` or `ts-node <file>`
 - Use `bun test` instead of `jest` or `vitest`

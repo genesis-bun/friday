@@ -1,14 +1,14 @@
 import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { z } from "zod";
 import { config } from "@/config.ts";
-import { sendEmail } from "@/lib/utils/gmail.ts";
+import { formatEmailPreview, getGmailClient } from "@/lib/utils/gmail.ts";
 import { log } from "@/lib/utils/logger.ts";
 
-export const registerSendEmail = (server: McpServer) => {
+export const registerPreviewEmail = (server: McpServer) => {
 	server.registerTool(
-		"send_email",
+		"preview_email",
 		{
-			description: `${config.systemPrompt}\n\nSend an email via Gmail (plain text or HTML). Multiple recipients may be comma-separated. Supports CC and BCC.\n\n**REQUIRED WORKFLOW (NON-NEGOTIABLE):**\n- ALWAYS call preview_email first.\n- ALWAYS present the preview to the user in a human-readable form.\n- ONLY call send_email after the user gives explicit confirmation to send.\n\n**SAFETY:** If the user has not clearly approved sending (or requests edits), do NOT call this tool—return to preview_email with the updated draft instead.`,
+			description: `${config.systemPrompt}\n\nPreview an email BEFORE sending.\n\n**REQUIRED OUTPUT:** After calling this tool, ALWAYS display the email exactly as an end user would experience it.\n- Always show headers (From, To, CC, BCC, Reply-To if present, Subject) and clearly indicate Content-Type.\n- If the email is plain text: display it as plain text (preserve paragraphs/line breaks).\n- If the email is HTML: display a readable “rendered” preview of the HTML content (what the recipient would see), and also include the plain-text equivalent/fallback if available.\n\n**REQUIRED WORKFLOW:** Use this tool before any send. Present the preview, then ask for explicit user confirmation (send / do not send / edits) before calling send_email.`,
 			inputSchema: {
 				to: z
 					.string()
@@ -80,30 +80,46 @@ export const registerSendEmail = (server: McpServer) => {
 		},
 		async ({ to, subject, body, cc, bcc, isHtml = false }) => {
 			try {
-				const result = await sendEmail({
-					to,
-					subject,
-					body,
-					cc,
-					bcc,
-					isHtml,
-				});
+				const gmail = await getGmailClient();
+				const userEmail = (await gmail.users.getProfile({ userId: "me" })).data
+					.emailAddress;
 
-				const response = {
-					success: true,
-					messageId: result.messageId,
-					threadId: result.threadId,
-					message: `Sent email to ${to}`,
-				};
+				if (!userEmail) {
+					throw new Error("Could not determine user email address");
+				}
 
-				await log("info", "send_email", { to, subject }, response.message);
+				const preview = formatEmailPreview(
+					{ to, subject, body, cc, bcc, isHtml },
+					userEmail,
+				);
+
+				await log(
+					"info",
+					"preview_email",
+					{ to, subject },
+					"Email preview generated",
+				);
 
 				return {
-					content: [{ type: "text", text: JSON.stringify(response, null, 2) }],
+					content: [
+						{
+							type: "text",
+							text: JSON.stringify(
+								{
+									success: true,
+									preview,
+									message:
+										"Display the email as the recipient would see it. Show headers (From/To/CC/BCC/Reply-To/Subject) and content type. For plain text, preserve line breaks. For HTML, show a readable rendered preview and also include a plain-text equivalent/fallback if available. Then request explicit user confirmation before sending.",
+								},
+								null,
+								2,
+							),
+						},
+					],
 				};
 			} catch (error) {
 				const msg = error instanceof Error ? error.message : "Unknown error";
-				await log("error", "send_email", { to, subject }, msg);
+				await log("error", "preview_email", { to, subject }, msg);
 				return {
 					content: [
 						{
@@ -111,7 +127,7 @@ export const registerSendEmail = (server: McpServer) => {
 							text: JSON.stringify(
 								{
 									success: false,
-									error: `Error sending email: ${msg}`,
+									error: `Error generating email preview: ${msg}`,
 								},
 								null,
 								2,

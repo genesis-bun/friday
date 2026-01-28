@@ -26,6 +26,16 @@ export interface RecurrenceRule {
 	byMonthDay?: number[];
 }
 
+export interface AttendeeInput {
+	email: string;
+	displayName?: string;
+}
+
+export interface ReminderInput {
+	minutes: number;
+	method?: "email" | "popup";
+}
+
 export interface CreateEventParams {
 	title: string;
 	description?: string;
@@ -34,6 +44,9 @@ export interface CreateEventParams {
 	timezone?: string;
 	recurrence?: RecurrenceRule | string;
 	addMeetLink?: boolean;
+	location?: string;
+	attendees?: string[] | AttendeeInput[];
+	reminders?: ReminderInput[] | "default";
 }
 
 export interface CreateEventResult {
@@ -107,6 +120,36 @@ export async function createEvent(
 		end: convertToGoogleCalendarFormat(endDate, tz),
 	};
 
+	if (params.location) {
+		requestBody.location = params.location;
+	}
+
+	if (params.attendees) {
+		requestBody.attendees = params.attendees.map((attendee) => {
+			if (typeof attendee === "string") {
+				return { email: attendee };
+			}
+			return {
+				email: attendee.email,
+				displayName: attendee.displayName,
+			};
+		});
+	}
+
+	if (params.reminders !== undefined) {
+		if (params.reminders === "default") {
+			requestBody.reminders = { useDefault: true };
+		} else if (Array.isArray(params.reminders)) {
+			requestBody.reminders = {
+				useDefault: false,
+				overrides: params.reminders.map((reminder) => ({
+					method: reminder.method || "popup",
+					minutes: reminder.minutes,
+				})),
+			};
+		}
+	}
+
 	if (params.recurrence) {
 		requestBody.recurrence = formatRecurrenceRule(params.recurrence);
 	}
@@ -161,6 +204,9 @@ export interface UpdateEventParams {
 	recurrence?: RecurrenceRule | string;
 	updateAllInstances?: boolean;
 	addMeetLink?: boolean;
+	location?: string;
+	attendees?: string[] | AttendeeInput[];
+	reminders?: ReminderInput[] | "default";
 }
 
 export async function updateEvent(
@@ -187,18 +233,50 @@ export async function updateEvent(
 		existingEvent.data = masterEvent.data;
 	}
 
-	const updateData: {
-		summary?: string;
-		description?: string;
-		start?: { dateTime: string; timeZone: string };
-		end?: { dateTime: string; timeZone: string };
-		recurrence?: string[];
-		conferenceData?: calendar_v3.Schema$ConferenceData;
-	} = {};
+	// Start with existing event data to preserve all fields
+	const updateData: calendar_v3.Schema$Event = {
+		...existingEvent.data,
+	};
 
-	if (params.title !== undefined) updateData.summary = params.title;
-	if (params.description !== undefined)
+	// Only update fields that are explicitly provided
+	if (params.title !== undefined) {
+		updateData.summary = params.title;
+	}
+
+	if (params.description !== undefined) {
 		updateData.description = params.description;
+	}
+
+	if (params.location !== undefined) {
+		updateData.location = params.location;
+	}
+
+	if (params.attendees !== undefined) {
+		updateData.attendees = params.attendees.map((attendee) => {
+			if (typeof attendee === "string") {
+				return { email: attendee };
+			}
+			return {
+				email: attendee.email,
+				displayName: attendee.displayName,
+			};
+		});
+	}
+
+	if (params.reminders !== undefined) {
+		if (params.reminders === "default") {
+			updateData.reminders = { useDefault: true };
+		} else if (Array.isArray(params.reminders)) {
+			updateData.reminders = {
+				useDefault: false,
+				overrides: params.reminders.map((reminder) => ({
+					method: reminder.method || "popup",
+					minutes: reminder.minutes,
+				})),
+			};
+		}
+	}
+
 	if (params.recurrence !== undefined) {
 		if (isRecurringInstance && !params.updateAllInstances) {
 			throw new Error(
@@ -226,8 +304,11 @@ export async function updateEvent(
 			validateNotInPast(startDate);
 		}
 		updateData.start = convertToGoogleCalendarFormat(startDate, tz);
-	} else if (existingEvent.data.start?.dateTime) {
-		startDate = new Date(existingEvent.data.start.dateTime);
+	} else {
+		// Preserve existing start time
+		startDate = existingEvent.data.start?.dateTime
+			? new Date(existingEvent.data.start.dateTime)
+			: undefined;
 	}
 
 	if (params.endTime) {
@@ -242,14 +323,18 @@ export async function updateEvent(
 			endDate = parseLocalTime(params.endTime, tz);
 		}
 		updateData.end = convertToGoogleCalendarFormat(endDate, tz);
-	} else if (existingEvent.data.end?.dateTime) {
-		endDate = new Date(existingEvent.data.end.dateTime);
+	} else {
+		// Preserve existing end time
+		endDate = existingEvent.data.end?.dateTime
+			? new Date(existingEvent.data.end.dateTime)
+			: undefined;
 	}
 
 	if (startDate && endDate) {
 		validateEventTimes(startDate, endDate);
 	}
 
+	// Handle meet link addition
 	if (params.addMeetLink) {
 		updateData.conferenceData = {
 			createRequest: {
@@ -381,3 +466,69 @@ export async function getRecurringEventInstances(
 }
 
 export type Event = calendar_v3.Schema$Event;
+
+function formatDateToRFC5545(dateTime: string): string {
+	const date = new Date(dateTime);
+	const year = date.getUTCFullYear();
+	const month = String(date.getUTCMonth() + 1).padStart(2, "0");
+	const day = String(date.getUTCDate()).padStart(2, "0");
+	const hours = String(date.getUTCHours()).padStart(2, "0");
+	const minutes = String(date.getUTCMinutes()).padStart(2, "0");
+	const seconds = String(date.getUTCSeconds()).padStart(2, "0");
+	return `${year}${month}${day}T${hours}${minutes}${seconds}Z`;
+}
+
+export function generateCalendarLink(event: calendar_v3.Schema$Event): string {
+	const baseUrl = "https://calendar.google.com/calendar/u/0/r/eventedit";
+	const params = new URLSearchParams();
+
+	if (event.summary) {
+		params.append("text", event.summary);
+	}
+
+	if (event.start?.dateTime) {
+		const startDate = formatDateToRFC5545(event.start.dateTime);
+		const endDate = event.end?.dateTime
+			? formatDateToRFC5545(event.end.dateTime)
+			: startDate;
+		params.append("dates", `${startDate}/${endDate}`);
+	} else if (event.start?.date && event.end?.date) {
+		params.append("dates", `${event.start.date}/${event.end.date}`);
+	}
+
+	if (event.location) {
+		params.append("location", event.location);
+	}
+
+	// Extract Google Meet link using the same pattern as createEvent/updateEvent
+	const meetLink =
+		event.conferenceData?.entryPoints?.find(
+			(ep) => ep.entryPointType === "video",
+		)?.uri || undefined;
+
+	// Build description with meet link if available
+	let description = event.description || "";
+	if (meetLink) {
+		const meetLinkText = `\n\nGoogle Meet: ${meetLink}`;
+		description = description
+			? `${description}${meetLinkText}`
+			: meetLinkText.trim();
+	}
+
+	if (description) {
+		params.append("details", description);
+	}
+
+	if (event.recurrence && event.recurrence.length > 0) {
+		const rrule = event.recurrence[0];
+		if (rrule) {
+			if (rrule.startsWith("RRULE:")) {
+				params.append("recur", rrule.substring(6));
+			} else {
+				params.append("recur", rrule);
+			}
+		}
+	}
+
+	return `${baseUrl}?${params.toString()}`;
+}

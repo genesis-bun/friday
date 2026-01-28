@@ -1,6 +1,10 @@
 import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { z } from "zod";
 import { log } from "@/lib/utils/logger.ts";
+import {
+	validateInputText,
+	validateShortcutName,
+} from "@/lib/utils/validation.ts";
 
 export const registerRunShortcut = (server: McpServer) => {
 	server.registerTool(
@@ -14,19 +18,30 @@ export const registerRunShortcut = (server: McpServer) => {
 		},
 		async ({ shortcutName, inputText }) => {
 			try {
-				const args = ["shortcuts", "run", shortcutName];
+				validateShortcutName(shortcutName);
 				if (inputText) {
-					args.push("-i", inputText);
+					validateInputText(inputText);
 				}
 
-				const result = await Bun.$`${args}`.quiet();
+				let result: Awaited<ReturnType<typeof Bun.$>>;
+				if (inputText) {
+					result =
+						await Bun.$`shortcuts run ${shortcutName} -i ${inputText}`.quiet();
+				} else {
+					result = await Bun.$`shortcuts run ${shortcutName}`.quiet();
+				}
 
 				if (result.exitCode !== 0) {
 					throw new Error(result.stderr?.toString() || "Command failed");
 				}
 
 				return {
-					content: [{ type: "text", text: result.stdout?.toString() || "" }],
+					content: [
+						{
+							type: "text",
+							text: result.stdout?.toString() || "",
+						},
+					],
 				};
 			} catch (error) {
 				const errorMessage =
@@ -38,7 +53,6 @@ export const registerRunShortcut = (server: McpServer) => {
 					errorMessage,
 				);
 
-				// Check for permission issues
 				const isPermissionError =
 					errorMessage.includes(
 						"Couldn't communicate with a helper application",

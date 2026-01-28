@@ -1,6 +1,12 @@
 {
 	"$schema": "https://biomejs.dev/schemas/2.3.8/schema.json",
 	"files": {
-		"includes": ["**", "!!**/.embeddings-cache.json"]
+		"includes": [
+			"**",
+			"!!**/.embeddings-cache.json",
+			"!!vault",
+			"!!**/vault",
+			"!!**/.obsidian"
+		]
 	}
 }
