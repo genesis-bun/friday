@@ -508,7 +508,7 @@ export function generateCalendarLink(event: calendar_v3.Schema$Event): string {
 
 	// Build description with meet link if available
 	let description = event.description || "";
-	if (meetLink) {
+	if (meetLink && !description.includes(meetLink)) {
 		const meetLinkText = `\n\nGoogle Meet: ${meetLink}`;
 		description = description
 			? `${description}${meetLinkText}`
