@@ -6,6 +6,7 @@ import {
 	addLinkToNote,
 	deleteNote,
 	generateNotePath,
+	readNote,
 	writeNote,
 } from "@/lib/utils/notes.ts";
 import { resolvePath } from "@/lib/utils/path.ts";
@@ -14,7 +15,7 @@ export const registerManageNote = (server: McpServer) => {
 	server.registerTool(
 		"manage_note",
 		{
-			description: `${config.systemPrompt}\n\nCreate, update, or delete a specific note. Before creating a new note, ALWAYS first check for the existence of related notes (using list_notes with similar keywords) and see if any common folder exists where the new note should be placed. Title parameter is mandatory and will be used to generate a readable filename if path is not provided. When creating reference notes for goals, always create an overview file first: {Goal Title} - Overview. If additional detail notes are needed, create them and add [[Note Title]] links in the overview. Use Obsidian [[note-title]] syntax for linking. Note creation handles directory checking and creation if the provided path string includes subfolders. Echo the full path (absolute path) of the modified note in the response.`,
+			description: `${config.systemPrompt}\n\nCreate, update, or delete a specific note. Before creating a new note, ALWAYS first check for the existence of related notes (using list_notes with similar keywords) and see if any common folder exists where the new note should be placed. Title parameter is mandatory and will be used to generate a readable filename if path is not provided. Reference notes for goals and ideas should live under Goals/{title}.md and Ideas/{title}.md and use Obsidian [[note-title]] syntax for linking. Note creation handles directory checking and creation if the provided path string includes subfolders. Echo the full path (absolute path) of the modified note in the response.`,
 			inputSchema: {
 				action: z
 					.enum(["create", "update", "delete"])
@@ -48,6 +49,10 @@ export const registerManageNote = (server: McpServer) => {
 					if (!path) {
 						throw new Error("Path is required for delete action");
 					}
+					let content: string | undefined;
+					try {
+						content = await readNote(path);
+					} catch {}
 					await deleteNote(path);
 					const vaultPath = resolvePath(config.obsidianVault || "");
 					const fullPath = `${vaultPath}/${path}`;
@@ -68,6 +73,7 @@ export const registerManageNote = (server: McpServer) => {
 										success: true,
 										message: `Deleted note: ${path}`,
 										path: fullPath,
+										deletedContent: content,
 									},
 									null,
 									2,

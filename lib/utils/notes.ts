@@ -4,18 +4,22 @@ import { config } from "@/config.ts";
 import { resolvePath, resolveVaultPath } from "./path.ts";
 import { getProfile, getState, updateProfile, updateState } from "./state.ts";
 
-export async function generateNotePath(title: string): Promise<string> {
-	if (!config.obsidianVault) {
-		throw new Error("Obsidian vault path not configured");
-	}
-
-	const slug = title
+export function slugifyTitle(title: string): string {
+	return title
 		.toLowerCase()
 		.replace(/[^a-z0-9\s-]/g, "")
 		.replace(/\s+/g, "-")
 		.replace(/-+/g, "-")
 		.replace(/^-|-$/g, "")
 		.substring(0, 50);
+}
+
+export async function generateNotePath(title: string): Promise<string> {
+	if (!config.obsidianVault) {
+		throw new Error("Obsidian vault path not configured");
+	}
+
+	const slug = slugifyTitle(title);
 
 	const vaultPath = resolvePath(config.obsidianVault);
 	let filename = `${slug}.md`;
@@ -81,6 +85,16 @@ export async function readNote(path: string): Promise<string> {
 	}
 
 	return await file.text();
+}
+
+export async function ensureNoteExists(path: string): Promise<void> {
+	try {
+		await readNote(path);
+	} catch {
+		try {
+			await writeNote(path, "");
+		} catch {}
+	}
 }
 
 export function extractNoteTitle(path: string): string {

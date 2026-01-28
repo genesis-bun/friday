@@ -8,6 +8,7 @@ import {
 	generateReferenceId,
 } from "@/lib/utils/id.ts";
 import { log } from "@/lib/utils/logger.ts";
+import { ensureNoteExists, slugifyTitle } from "@/lib/utils/notes.ts";
 import {
 	addItem,
 	deleteItem,
@@ -162,7 +163,7 @@ export const registerManageState = (server: McpServer) => {
 	server.registerTool(
 		"manage_state",
 		{
-			description: `${config.systemPrompt}\n\nManage items in state or profile using unified schema:\n\n**STATE (source='state')** → state.yaml: Ephemeral/active work. Goals (OKR format with keyResults) and thoughts. Archived periodically.\n**PROFILE (source='profile')** → profile.yaml: Persistent knowledge (achievements, skills, projects, preferences, history). Rarely deleted.\n\n**WORKFLOW**: Before creating:\n1. Query existing items (use query_state with minimal=true) to see what already exists\n2. Check for similar items - if similar, add the new content as a ref note instead of creating a new item\n3. If creating a new item, prefer using existing category if relevant over creating new category string (CONSOLIDATION FIRST)\n4. Supports adding optional keyResults, references, and metadata for items if needed.\n\n**NEVER PROVIDE IDS FOR CREATING NEW ITEMS, REFERENCES, OR METADATA. THEY ARE AUTO-GENERATED.**`,
+			description: `${config.systemPrompt}\n\nManage items in state or profile using unified schema:\n\n**STATE (source='state')** → state.yaml: Ephemeral/active work. Goals (OKR format with keyResults) and thoughts. Archived periodically. For new state goals and thoughts, a matching Obsidian note is ensured in Goals/{title}.md or Ideas/{title}.md and attached as a reference with type='note'. When deleting state items, inspect their references and, if there are note refs, ask whether to also clean up those notes using the manage_note tool instead of deleting them directly here.\n**PROFILE (source='profile')** → profile.yaml: Persistent knowledge (achievements, skills, projects, preferences, history). Rarely deleted.\n\n**WORKFLOW**: Before creating:\n1. Query existing items (use query_state with minimal=true) to see what already exists\n2. Check for similar items - if similar, add the new content as a ref note instead of creating a new item\n3. If creating a new item, prefer using existing category if relevant over creating new category string (CONSOLIDATION FIRST)\n4. Supports adding optional keyResults, references, and metadata for items if needed.\n\n**NEVER PROVIDE IDS FOR CREATING NEW ITEMS, REFERENCES, OR METADATA. THEY ARE AUTO-GENERATED.**`,
 			inputSchema: {
 				source: z
 					.enum(["state", "profile"])
@@ -266,12 +267,32 @@ export const registerManageState = (server: McpServer) => {
 					const now = Date.now();
 
 					// Pass all items to ensure keyResults and references are unique across all items
+					let notePath: string | undefined;
+					if (isState && type) {
+						const baseDir = type === "goal" ? "Goals" : "Ideas";
+						const slug = slugifyTitle(title);
+						if (slug) {
+							notePath = `${baseDir}/${slug}.md`;
+							await ensureNoteExists(notePath);
+						}
+					}
+
 					const processedKeyResults = processKeyResults(
 						keyResults,
 						undefined,
 						data.items,
 					);
-					const processedReferences = processReferences(references, data.items);
+					const refInputs =
+						notePath && source === "state"
+							? [
+									...(references || []),
+									{
+										type: "note",
+										link: notePath,
+									},
+								]
+							: references;
+					const processedReferences = processReferences(refInputs, data.items);
 
 					const newItem: Item = {
 						id: newItemId,
@@ -432,11 +453,12 @@ export const registerManageState = (server: McpServer) => {
 						throw new Error("Item ID is required for deleting");
 					}
 
+					let itemReferences: Reference[] | undefined;
 					if (source === "state") {
 						const state = await getState();
-						const updatedItems = state.items.filter(
-							(item) => item.id !== itemId,
-						);
+						const item = state.items.find((i) => i.id === itemId);
+						itemReferences = item?.references;
+						const updatedItems = state.items.filter((i) => i.id !== itemId);
 						await updateState({ items: updatedItems });
 					} else {
 						await deleteItem(itemId);
@@ -455,7 +477,11 @@ export const registerManageState = (server: McpServer) => {
 							{
 								type: "text",
 								text: JSON.stringify(
-									{ success: true, message: response },
+									{
+										success: true,
+										message: response,
+										references: itemReferences,
+									},
 									null,
 									2,
 								),

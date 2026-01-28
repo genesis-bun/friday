@@ -28,9 +28,7 @@ import { registerListShortcuts } from "./tools/shortcuts/list-shortcuts.ts";
 import { registerRunShortcut } from "./tools/shortcuts/run-shortcut.ts";
 import { registerManageState } from "./tools/user/manage-state.ts";
 import { registerQueryState } from "./tools/user/query-state.ts";
-import { registerPromoteThought } from "./tools/workflows/promote-thought.ts";
 import { registerReviewThoughts } from "./tools/workflows/review-thoughts.ts";
-import { registerSyncGoals } from "./tools/workflows/sync-goals.ts";
 import { registerDownloadMedia } from "./tools/ytdlp/download.ts";
 
 const server = new McpServer({
@@ -55,8 +53,6 @@ registerConsultVault(server);
 registerOrganiseNotes(server);
 registerViewNote(server);
 registerReviewThoughts(server);
-registerPromoteThought(server);
-registerSyncGoals(server);
 registerDownloadMedia(server);
 registerListEvents(server);
 registerManageCalendarEvent(server);
