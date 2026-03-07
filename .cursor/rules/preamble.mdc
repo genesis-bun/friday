@@ -1,0 +1,8 @@
+---
+alwaysApply: true
+---
+
+# State Organization Rule
+- Profile items (profile.yaml) = major domains only. Individual items belong in notes within those domains, not as separate profile entries. (persistent knowledge)
+- Only add noteDir references to profile items and create notes in those directories for that domain.
+- State items (state.yaml) = ephemeral / temporary tasks, todos, goals and thoughts go here. (progress check and cleanup periodically)

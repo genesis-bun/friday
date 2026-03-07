@@ -15,7 +15,7 @@ export const registerManageNote = (server: McpServer) => {
 	server.registerTool(
 		"manage_note",
 		{
-			description: `${config.systemPrompt}\n\nCreate, update, or delete a specific note. Before creating a new note, ALWAYS first check for the existence of related notes (using list_notes with similar keywords) and see if any common folder exists where the new note should be placed. Title parameter is mandatory and will be used to generate a readable filename if path is not provided. Reference notes for goals and ideas should live under Goals/{title}.md and Ideas/{title}.md and use Obsidian [[note-title]] syntax for linking. Note creation handles directory checking and creation if the provided path string includes subfolders. Echo the full path (absolute path) of the modified note in the response.`,
+			description: `${config.systemPrompt}\n\nCreate, update, or delete a specific note. Before creating a new note, ALWAYS first check for the existence of related notes (using list_notes with similar keywords) and see if any common folder exists where the new note should be placed. Title parameter is mandatory and will be used to generate a readable filename if path is not provided. Reference notes for goals and ideas should live under Goals/{title}.md and Ideas/{title}.md and use Obsidian [[note-title]] syntax for linking.\n\nWhen updating an existing note, ALWAYS read the note first using readNote or view_note to see the current content before making any changes. NEVER replace the entire file content unless the user has explicitly asked for a full rewrite. Default behaviour must be to append new content or make minimal, surgical edits that preserve all existing text. The tool will automatically read the note before updating and return the previous content in the response for potential reversion.\n\nNote creation handles directory checking and creation if the provided path string includes subfolders. Echo the full path (absolute path) of the modified note in the response.`,
 			inputSchema: {
 				action: z
 					.enum(["create", "update", "delete"])
@@ -49,9 +49,9 @@ export const registerManageNote = (server: McpServer) => {
 					if (!path) {
 						throw new Error("Path is required for delete action");
 					}
-					let content: string | undefined;
+					let deletedContent: string | undefined;
 					try {
-						content = await readNote(path);
+						deletedContent = await readNote(path);
 					} catch {}
 					await deleteNote(path);
 					const vaultPath = resolvePath(config.obsidianVault || "");
@@ -73,7 +73,7 @@ export const registerManageNote = (server: McpServer) => {
 										success: true,
 										message: `Deleted note: ${path}`,
 										path: fullPath,
-										deletedContent: content,
+										deletedContent,
 									},
 									null,
 									2,
@@ -91,6 +91,12 @@ export const registerManageNote = (server: McpServer) => {
 					}
 
 					const notePath = path || (await generateNotePath(title));
+					let oldContent: string | undefined;
+					if (action === "update") {
+						try {
+							oldContent = await readNote(notePath);
+						} catch {}
+					}
 					await writeNote(notePath, content);
 
 					if (action === "create" && linkTo) {
@@ -112,7 +118,12 @@ export const registerManageNote = (server: McpServer) => {
 							{
 								type: "text",
 								text: JSON.stringify(
-									{ success: true, message, path: fullPath },
+									{
+										success: true,
+										message,
+										path: fullPath,
+										...(oldContent !== undefined && { oldContent }),
+									},
 									null,
 									2,
 								),

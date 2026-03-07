@@ -1,0 +1,8 @@
+---
+description: your log of corrections by user; append to this file everytime user corrects your approaches.
+alwaysApply: true
+---
+# Learning Log
+
+<!-- Append when user corrects. Format: - [YYYY-MM-DD] Mistake: X. Fix: Y. -->
+- [2026-03-04] Mistake: Adding individual items as profile entries. They should be notes within the profile's major domains.

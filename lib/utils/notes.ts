@@ -87,12 +87,15 @@ export async function readNote(path: string): Promise<string> {
 	return await file.text();
 }
 
-export async function ensureNoteExists(path: string): Promise<void> {
+export async function ensureNoteExists(
+	path: string,
+	content = "",
+): Promise<void> {
 	try {
 		await readNote(path);
 	} catch {
 		try {
-			await writeNote(path, "");
+			await writeNote(path, content);
 		} catch {}
 	}
 }

@@ -273,7 +273,7 @@ export const registerManageState = (server: McpServer) => {
 						const slug = slugifyTitle(title);
 						if (slug) {
 							notePath = `${baseDir}/${slug}.md`;
-							await ensureNoteExists(notePath);
+							await ensureNoteExists(notePath, desc);
 						}
 					}
 
